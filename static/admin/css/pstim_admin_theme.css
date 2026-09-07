@@ -13,6 +13,54 @@
 }
 
 /* =========================================================
+   NESTED SUBMENU (FLYOUT) STYLES
+   ========================================================= */
+
+.pstim-dropdown-submenu {
+  position: relative;
+}
+
+.pstim-submenu-trigger {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  cursor: pointer;
+}
+
+.pstim-submenu-caret {
+  font-size: 9px;
+  margin-left: 12px;
+  opacity: 0.6;
+}
+
+/* Secondary Flyout Menu (opens to the right of the parent item) */
+.pstim-submenu-dropdown {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 210px;
+  background-color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  padding: 6px 0;
+  z-index: 1002;
+}
+
+/* Show flyout on hover */
+.pstim-dropdown-submenu:hover > .pstim-submenu-dropdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.pstim-dropdown-submenu:hover > .pstim-submenu-trigger {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #60a5fa !important;
+}
+
+/* =========================================================
      ANALYSIS RUNNING SPINNER
      ========================================================= */
 
