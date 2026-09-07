@@ -5,6 +5,7 @@ from animals_metadata.utils import (
     BaseTrackChangesAdmin,
     render_copyable_path_widget,
 )
+
 from .models import ImagingSession, TrackChanges
 
 
@@ -18,18 +19,17 @@ class ImagingSessionAdmin(SimpleHistoryAdmin):
         "imaging_region",
         "measurement_unit_ranges",
         "display_mesc_file_path",
+        "need_for_analysis",
+        "analysis_performed",
     )
 
     list_filter = (
         "acquisition_date",
-        "imaging_region",
+        "animal__animal_id",
     )
 
     search_fields = (
         "animal__animal_id",
-        "imaging_region",
-        "mesc_file_path",
-        "measurement_unit_ranges",
     )
 
     ordering = ("-acquisition_date",)

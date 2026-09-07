@@ -914,6 +914,20 @@ body.app-animals_metadata.model-visioncheck.change-list
 }
 
 /* =========================================================
+     IMAGING SESSIONS — ANIMAL ID
+     ========================================================= */
+
+body.app-imaging_metadata.model-imagingsession.change-list
+  #result_list
+  th.column-animal,
+body.app-imaging_metadata.model-imagingsession.change-list
+  #result_list
+  td.field-animal {
+  /* padding-right: 20px !important; */
+  width: 90px !important;
+}
+
+/* =========================================================
      IMAGING SESSIONS — ACQUISITION DATE
      ========================================================= */
 
@@ -924,7 +938,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-acquisition_date {
   padding-right: 20px !important;
-  width: 8% !important;
+  width: 120px !important;
 }
 
 /* =========================================================
@@ -937,8 +951,8 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-imaging_region {
-  width: 8% !important;
-  /* min-width: 100px !important; */
+  width: 100px !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_metadata.model-imagingsession.change-list
@@ -958,8 +972,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-measurement_unit_ranges {
-  width: 15% !important;
-  /* min-width: 100px !important; */
+  width: 150px !important;
 
   white-space: normal !important;
 
@@ -987,8 +1000,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-display_mesc_file_path {
-  width: 60% !important;
-  min-width: 300px !important;
+  width: 800px !important;
 
   white-space: normal !important;
 

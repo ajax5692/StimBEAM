@@ -34,6 +34,26 @@ class ImagingSession(models.Model):
         blank=True,
         null=True,
     )
+    
+    class NeedForAnalysisChoices(models.TextChoices):
+        YES = 'Y', 'Yes'
+        NO  = 'N', 'No'
+        
+    need_for_analysis = models.TextField(
+        blank=True,
+        null=True,
+        choices=NeedForAnalysisChoices.choices
+    )
+    
+    class AnalysisPerformedChoices(models.TextChoices):
+        YES = 'Y', 'Yes'
+        NO  = 'N', 'No'
+        
+    analysis_performed = models.TextField(
+        blank=True,
+        null=True,
+        choices=AnalysisPerformedChoices.choices
+    )
 
     history = HistoricalRecords()
 
