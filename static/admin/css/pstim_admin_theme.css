@@ -441,29 +441,38 @@ body.app-imaging_analysis_metadata.model-analysisrun.change-list
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-created_at,
+  th.column-created_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-created_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-started_at,
+  th.column-started_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-started_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-completed_at,
+  th.column-completed_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-completed_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list

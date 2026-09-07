@@ -258,6 +258,19 @@ class AnalysisRunAdmin(SimpleHistoryAdmin):
             output_text,
         )
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        # Sync the parent ImagingSession with the chosen status
+        session = obj.imaging_session
+        if session:
+            if obj.status == AnalysisRun.StatusChoices.COMPLETED:
+                session.analysis_performed = "Y"
+                session.save(update_fields=["analysis_performed"])
+            elif obj.status == AnalysisRun.StatusChoices.FAILED:
+                session.analysis_performed = "N"
+                session.save(update_fields=["analysis_performed"])
+
 
 from animals_metadata.utils import get_user_initials
 

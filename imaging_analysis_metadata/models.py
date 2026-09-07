@@ -61,16 +61,16 @@ class AnalysisRun(BaseAsyncJobModel):
         )
 
     def mark_completed(self) -> None:
-        self.status = self.StatusChoices.COMPLETED
-        self.completed_at = timezone.now()
-        self.error_message = ""
-        self.save(
-            update_fields=[
-                "status",
-                "completed_at",
-                "error_message",
-            ]
-        )
+        super().mark_completed()
+        if self.imaging_session and self.imaging_session.analysis_performed != "Y":
+            self.imaging_session.analysis_performed = "Y"
+            self.imaging_session.save(update_fields=["analysis_performed"])
+
+    def mark_failed(self, error_message: str = "") -> None:
+        super().mark_failed(error_message)
+        if self.imaging_session and self.imaging_session.analysis_performed != "N":
+            self.imaging_session.analysis_performed = "N"
+            self.imaging_session.save(update_fields=["analysis_performed"])
 
     history = HistoricalRecords()
 

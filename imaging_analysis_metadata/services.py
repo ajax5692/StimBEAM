@@ -188,6 +188,12 @@ def execute_analysis(
         )
 
         analysis_run.mark_completed()
+        
+        # Automatically update the parent ImagingSession to 'Yes'
+        session = analysis_run.imaging_session
+        if session and session.analysis_performed != "Y":
+            session.analysis_performed = "Y"
+            session.save(update_fields=["analysis_performed"])
 
         if logger_func:
             logger_func(f"[Run #{analysis_run.pk}] Detected Frame Rate: {analysis_run.frame_rate} Hz")
