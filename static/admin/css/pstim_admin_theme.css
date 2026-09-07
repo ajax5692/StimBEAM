@@ -539,36 +539,55 @@ body.app-imaging_analysis_metadata.model-analysisrun.change-list
      ANIMALS TABLE — ANIMAL ID COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(2),
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(2) {
-  width: 110px !important;
-  min-width: 110px !important;
+  th.column-animal_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-animal_id {
+  width: 80px !important;
 }
 
 /* =========================================================
      ANIMALS TABLE — OWNER COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(3),
+body.app-animals_metadata.model-animal.change-list #result_list th.column-owner,
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(3) {
-  width: 150px !important;
-  min-width: 150px !important;
+  td.column-owner {
+  width: 100px !important;
 }
 
 /* =========================================================
-     ANIMALS TABLE — PROJECT ID COLUMN
+     ANIMALS TABLE — SEX COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(8),
+body.app-animals_metadata.model-animal.change-list #result_list th.column-sex,
+body.app-animals_metadata.model-animal.change-list #result_list td.column-sex {
+  width: 60px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — GENOTYPE COLUMN
+     ========================================================= */
+
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(8) {
-  width: 300px !important;
-  min-width: 300px !important;
+  th.column-genotype,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-genotype {
+  width: 150px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — DOB COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list #result_list th.column-dob,
+body.app-animals_metadata.model-animal.change-list #result_list td.column-dob {
+  width: 100px !important;
 }
 
 /* =========================================================
@@ -581,8 +600,7 @@ body.app-animals_metadata.model-animal.change-list
 body.app-animals_metadata.model-animal.change-list
   #result_list
   td.field-age_in_days {
-  width: 120px !important;
-  min-width: 120px !important;
+  width: 90px !important;
 }
 
 body.app-animals_metadata.model-animal.change-list
@@ -608,7 +626,7 @@ body.app-animals_metadata.model-animal.change-list
   #result_list
   td.field-age_in_days {
   text-align: left !important;
-  padding-left: 20px !important;
+  padding-left: 10px !important;
 }
 
 /* =========================================================
@@ -617,12 +635,63 @@ body.app-animals_metadata.model-animal.change-list
 
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  th:nth-child(11),
+  th.column-status,
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(11) {
-  width: 70px !important;
-  min-width: 70px !important;
+  td.column-sattus {
+  width: 80px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — PIPELINE STAGE COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-pipeline_stage,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-pipeline_stage {
+  width: 150px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — CAGE ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-cage_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-cage_id {
+  width: 130px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — OGR ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-ogr_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-ogr_id {
+  width: 130px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — PROJECT ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-project_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-project_id {
+  width: 400px !important;
 }
 
 /* =========================================================

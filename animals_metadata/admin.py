@@ -22,12 +22,13 @@ class AnimalAdmin(SimpleHistoryAdmin):
         "owner",
         "sex",
         "genotype",
-        "cage_id",
-        "ogr_id",
-        "project_id",
         "dob",
         "age_in_days",
         "status",
+        "pipeline_stage",
+        "cage_id",
+        "ogr_id",
+        "project_id",
     )
 
     list_filter = (
