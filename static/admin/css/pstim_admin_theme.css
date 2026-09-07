@@ -1164,27 +1164,54 @@ body.app-training_metadata.model-trainingsession.change-list
      MICE BODY WEIGHT RECORDS TABLE — MAIN LIST
      ========================================================= */
 
+/* Animal ID*/
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_animal_id,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.field-get_animal_id {
-  width: 140px !important;
-  min-width: 120px !important;
-  max-width: 180px !important;
-  font-weight: 600 !important;
+  width: 10% !important;
 }
 
+/* Owner*/
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_owner,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.field-get_owner {
-  width: 120px !important;
-  min-width: 100px !important;
-  max-width: 160px !important;
+  width: 10% !important;
+}
+
+/* Water_restriction_start_date*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-water_restriction_start_date,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-water_restriction_start_date {
+  width: 20% !important;
+}
+
+/* % Body Wt. From Start*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-get_latest_percent_body_weight,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-get_latest_percent_body_weight {
+  width: 100px !important;
+}
+
+/* Last training day*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-get_latest_training_date,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-get_latest_training_date {
+  width: 100px !important;
 }
 
 /* =========================================================

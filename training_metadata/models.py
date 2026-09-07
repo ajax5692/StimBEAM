@@ -100,6 +100,9 @@ class MouseBodyWeight(models.Model):
         verbose_name="Animal ID",
     )
 
+    water_restriction_start_date = models.DateField(blank=True,
+        null=True,verbose_name="Water Restriction Start Date",)
+        
     history = HistoricalRecords()
 
     class Meta:
@@ -149,6 +152,16 @@ class BodyWeightEntry(models.Model):
         blank=True,
         null=True,
         verbose_name="% Body Weight Compared to Start",
+    )
+    
+    class TrainingPerformedChoices(models.TextChoices):
+        YES = 'Y', 'Yes'
+        NO  = 'N', 'No'
+    
+    is_training_done = models.TextField(
+        blank=True,
+        null=True,
+        choices=TrainingPerformedChoices.choices
     )
 
     notes = models.TextField(
