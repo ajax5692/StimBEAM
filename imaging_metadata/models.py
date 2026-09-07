@@ -42,7 +42,8 @@ class ImagingSession(models.Model):
     need_for_analysis = models.TextField(
         blank=True,
         null=True,
-        choices=NeedForAnalysisChoices.choices
+        choices=NeedForAnalysisChoices.choices,
+        verbose_name="Required for Analysis?"
     )
     
     class AnalysisPerformedChoices(models.TextChoices):
@@ -52,7 +53,8 @@ class ImagingSession(models.Model):
     analysis_performed = models.TextField(
         blank=True,
         null=True,
-        choices=AnalysisPerformedChoices.choices
+        choices=AnalysisPerformedChoices.choices,
+        verbose_name="Analysis Performed?"
     )
 
     history = HistoricalRecords()
