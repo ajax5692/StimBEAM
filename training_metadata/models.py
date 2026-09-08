@@ -6,6 +6,7 @@ from simple_history.models import HistoricalRecords
 from animals_metadata.utils import (
     BaseAsyncJobModel,
     validate_measurement_unit_ranges,
+    validate_non_overlapping_session_units,
 )
 
 
@@ -63,6 +64,26 @@ class TrainingSession(BaseAsyncJobModel):
         blank=True,
         null=True,
     )
+
+    def clean(self):
+        super().clean()
+        if hasattr(self, "animal_id") and self.animal_id and self.training_date and self.training_unit_range:
+            validate_non_overlapping_session_units(
+                model_class=TrainingSession,
+                animal=self.animal,
+                session_date=self.training_date,
+                unit_range_str=self.training_unit_range,
+                date_field_name="training_date",
+                unit_field_name="training_unit_range",
+                exclude_pk=self.pk,
+                model_name="training session",
+            )
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "training_date", "training_unit_range")):
+            self.clean()
+        super().save(*args, **kwargs)
 
     def mark_completed(self) -> None:
         self.status = self.StatusChoices.COMPLETED

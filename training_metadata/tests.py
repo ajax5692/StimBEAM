@@ -196,3 +196,128 @@ class TrainingAnalysisServiceAndAdminTest(TestCase):
         with self.assertRaises(ValidationError):
             invalid_session.full_clean()
 
+
+class TrainingSessionUnitValidationTest(TestCase):
+    def setUp(self):
+        self.animal1 = Animal.objects.create(
+            animal_id="TRN_TEST_1",
+            sex="M",
+            genotype="Thy1-gcamp6s",
+            dob=timezone.now().date(),
+        )
+        self.animal2 = Animal.objects.create(
+            animal_id="TRN_TEST_2",
+            sex="F",
+            genotype="Wildtype",
+            dob=timezone.now().date(),
+        )
+        self.today = timezone.now().date()
+        self.tomorrow = self.today + timezone.timedelta(days=1)
+
+    def test_duplicate_session_exact_units_rejected(self):
+        from django.core.exceptions import ValidationError
+
+        TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="10:21",
+        )
+
+        duplicate = TrainingSession(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file2.mat",
+            training_unit_range="10:21",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            duplicate.full_clean()
+        self.assertIn("training_unit_range", ctx.exception.message_dict)
+
+        with self.assertRaises(ValidationError):
+            duplicate.save()
+
+    def test_overlapping_units_rejected(self):
+        from django.core.exceptions import ValidationError
+
+        TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="10:21",
+        )
+
+        # Overlaps at units 20, 21
+        overlapping = TrainingSession(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file2.mat",
+            training_unit_range="20:30",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            overlapping.full_clean()
+        self.assertIn("training_unit_range", ctx.exception.message_dict)
+        self.assertIn("20", str(ctx.exception.message_dict["training_unit_range"]))
+
+    def test_disjoint_units_same_date_allowed(self):
+        s1 = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="1:10",
+        )
+        s2 = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file2.mat",
+            training_unit_range="11:20",
+        )
+        self.assertIsNotNone(s1.pk)
+        self.assertIsNotNone(s2.pk)
+
+    def test_same_units_different_date_allowed(self):
+        s1 = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="10:21",
+        )
+        s2 = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.tomorrow,
+            bpod_file_path="/data/file2.mat",
+            training_unit_range="10:21",
+        )
+        self.assertIsNotNone(s1.pk)
+        self.assertIsNotNone(s2.pk)
+
+    def test_same_units_different_animal_allowed(self):
+        s1 = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="10:21",
+        )
+        s2 = TrainingSession.objects.create(
+            animal=self.animal2,
+            training_date=self.today,
+            bpod_file_path="/data/file2.mat",
+            training_unit_range="10:21",
+        )
+        self.assertIsNotNone(s1.pk)
+        self.assertIsNotNone(s2.pk)
+
+    def test_update_existing_session_allowed(self):
+        session = TrainingSession.objects.create(
+            animal=self.animal1,
+            training_date=self.today,
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="10:21",
+        )
+        session.notes = "Updated notes"
+        session.full_clean()
+        session.save()
+        session.refresh_from_db()
+        self.assertEqual(session.notes, "Updated notes")
+
+
