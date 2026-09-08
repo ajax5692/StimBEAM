@@ -2362,19 +2362,16 @@ body.dashboard #content-related {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.12);
   border: 1px solid rgba(74, 222, 128, 0.3);
-  font-size: 20px;
 }
 .pstim-pill.warn {
   color: #facc15;
   background: rgba(250, 204, 21, 0.12);
   border: 1px solid rgba(250, 204, 21, 0.3);
-  font-size: 20px;
 }
 .pstim-pill.bad {
   color: #f87171;
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  font-size: 20px;
 }
 .pstim-pill.accent {
   color: #38bdf8;
@@ -2385,6 +2382,12 @@ body.dashboard #content-related {
   color: #94a3b8;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Stat Box Metric Specific Pill (% Baseline) */
+.pstim-stat-value .pstim-pill {
+  font-size: 20px;
+  padding: 2px 10px;
 }
 
 .pstim-stage-pill {
