@@ -1,0 +1,714 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="pstim-tracker-container">
+
+  <!-- =========================================================
+       TOP WORKSTATION NAVIGATION TABS
+       ========================================================= -->
+  <div class="pstim-tracker-nav">
+    <button type="button" class="pstim-tracker-tab active" id="btn-view-dashboard" onclick="switchTrackerView('dashboard')">
+      📊 Laboratory Dashboard
+    </button>
+    <button type="button" class="pstim-tracker-tab" id="btn-view-profile" onclick="switchTrackerView('profile')">
+      🔍 Mouse Profile Workstation
+    </button>
+  </div>
+
+  <!-- =========================================================
+       VIEW 1: LABORATORY DASHBOARD
+       ========================================================= -->
+  <div id="tracker-dashboard-view" class="pstim-tracker-view">
+    
+    <!-- STATS GRID (EXCLUDING <80% AND BEHAVIOR SESSIONS) -->
+    <div class="pstim-tracker-card">
+      <div class="pstim-tracker-card-header">
+        <div>
+          <h2 class="pstim-tracker-card-title">Laboratory Dashboard</h2>
+          <span class="pstim-tracker-card-subtitle">Active colony metrics & daily animal tracking overview</span>
+        </div>
+        <span class="pstim-tracker-date-badge">Today: {{ today|date:"Y-m-d" }}</span>
+      </div>
+
+      <div class="pstim-tracker-grid">
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Total Mice</div>
+          <div class="pstim-stat-value">{{ total_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Active Mice</div>
+          <div class="pstim-stat-value">{{ active_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Water Restricted</div>
+          <div class="pstim-stat-value">{{ water_restricted_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Not Weighed Today</div>
+          <div class="pstim-stat-value {% if not_weighed_today_count > 0 %}warn{% else %}good{% endif %}">
+            {{ not_weighed_today_count }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY WEIGHING ALERT (IF ANY) -->
+    {% if not_weighed_today_count > 0 %}
+      <div class="pstim-alert-banner warn">
+        <div class="pstim-alert-title">⏳ Water-restricted mice still to weigh today ({{ not_weighed_today_count }}):</div>
+        <div class="pstim-alert-list">
+          {% for a in not_weighed_today_animals %}
+            <button type="button" class="pstim-animal-pill-btn" onclick="openMouseProfile('{{ a.animal_id }}')">
+              🐁 {{ a.animal_id }} {% if a.cage_id %}(Cage {{ a.cage_id }}){% endif %}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- 2-COLUMN SECTION: PIPELINE DISTRIBUTION + RECENT ACTIVITY -->
+    <div class="pstim-dashboard-columns">
+      
+      <!-- PIPELINE DISTRIBUTION TABLE -->
+      <div class="pstim-tracker-card">
+        <div class="pstim-tracker-card-header">
+          <h3 class="pstim-tracker-card-title">Experimental Pipeline Distribution</h3>
+        </div>
+        
+        <div class="pstim-table-responsive">
+          <table class="pstim-tracker-table">
+            <thead>
+              <tr>
+                <th>Pipeline Stage</th>
+                <th>Count</th>
+                <th>Animals</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pipeline_distribution %}
+                <tr>
+                  <td>
+                    <span class="pstim-stage-pill stage-{{ p.stage|slugify }}">{{ p.stage }}</span>
+                  </td>
+                  <td><strong>{{ p.count }}</strong></td>
+                  <td>
+                    {% if p.animals %}
+                      <div class="pstim-animal-inline-list">
+                        {% for code in p.animals %}
+                          <button type="button" class="pstim-code-link" onclick="openMouseProfile('{{ code }}')">
+                            {{ code }}
+                          </button>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <span class="pstim-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RECENT MASTER ACTIVITY -->
+      <div class="pstim-tracker-card">
+        <div class="pstim-tracker-card-header">
+          <h3 class="pstim-tracker-card-title">Recent Master Activity</h3>
+        </div>
+
+        <div class="pstim-timeline-list">
+          {% for act in recent_activity %}
+            <div class="pstim-timeline-item">
+              <div class="pstim-timeline-dot"></div>
+              <div class="pstim-timeline-content">
+                <div class="pstim-timeline-header">
+                  <strong>{{ act.object_repr }}</strong>
+                  <span class="pstim-timeline-time">{{ act.time }}</span>
+                </div>
+                <div class="pstim-timeline-msg">{{ act.change_message }}</div>
+                <div class="pstim-timeline-user">By {{ act.user }}</div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="pstim-empty-state">No recent activity logged.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================
+       VIEW 2: MOUSE-CENTRIC PROFILE WORKSTATION
+       ========================================================= -->
+  <div id="tracker-profile-view" class="pstim-tracker-view hidden">
+    
+    <!-- MOUSE SELECTOR & ACTIONS BAR -->
+    <div class="pstim-tracker-card">
+      <div class="pstim-profile-header-row">
+        <div class="pstim-profile-selector-group">
+          <label for="mouse-select-input">Select Mouse:</label>
+          <select id="mouse-select-input" class="pstim-select" onchange="onMouseSelectChange(this.value)">
+            <!-- Options dynamically populated by JavaScript -->
+          </select>
+        </div>
+
+        <div class="pstim-profile-actions">
+          <a id="link-admin-edit" href="#" class="pstim-btn secondary small" target="_blank">
+            ✏️ Edit in Django Admin
+          </a>
+        </div>
+      </div>
+
+      <!-- TOP DEMOGRAPHICS BANNER -->
+      <div class="pstim-demographics-banner">
+        <div>
+          <h2 id="disp-animal-id" class="pstim-mouse-code">M000</h2>
+          <div id="disp-animal-meta" class="pstim-mouse-subtext">
+            Loading mouse metadata...
+          </div>
+        </div>
+        <div id="disp-stage-container">
+          <span id="disp-pipeline-stage" class="pstim-stage-pill accent">Intake</span>
+        </div>
+      </div>
+
+      <!-- QUICK METRICS GRID -->
+      <div class="pstim-tracker-grid quick-metrics">
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Baseline Weight</div>
+          <div id="metric-baseline" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Latest Weight</div>
+          <div id="metric-latest-wt" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">% Baseline</div>
+          <div id="metric-pct" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Water Restriction</div>
+          <div id="metric-water" class="pstim-stat-value small-text">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOUSE PROFILE DETAIL SUB-TABS -->
+    <div class="pstim-tracker-card" style="margin-top: 20px;">
+      <div class="pstim-profile-subnav">
+        <button type="button" class="pstim-subnav-btn active" onclick="switchProfileTab('overview')">📋 Overview</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('weights')">⚖️ Weights</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('water')">💧 Water Restriction</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('vision')">👁️ Vision</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('virus')">🧬 Virus Injections</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('imaging')">📷 Imaging & Analysis</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('timeline')">⏳ Master Timeline</button>
+      </div>
+
+      <!-- SUBTAB CONTENTS -->
+      <div id="profile-subtab-container" class="pstim-subtab-body">
+        
+        <!-- SUBTAB 1: OVERVIEW -->
+        <div id="subtab-overview" class="pstim-subtab-panel">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Longitudinal Body Weight Trajectory</h3>
+            <div class="pstim-canvas-wrapper">
+              <canvas id="canvas-overview-weight" height="240"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 2: WEIGHTS TABLE -->
+        <div id="subtab-weights" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Body Weight Measurement History</h3>
+            <div class="pstim-table-responsive">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Weight (g)</th>
+                    <th>% Baseline</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-weights">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 3: WATER RESTRICTION -->
+        <div id="subtab-water" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Water Restriction Protocol & Logs</h3>
+            <div id="disp-water-status" class="pstim-info-box">
+              Loading restriction details...
+            </div>
+            <div class="pstim-table-responsive" style="margin-top: 16px;">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Weight (g)</th>
+                    <th>% Baseline</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-water-weights">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 4: VISION CHECKS -->
+        <div id="subtab-vision" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Vision Screening & Tests</h3>
+            <div class="pstim-table-responsive">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Test Type</th>
+                    <th>Result</th>
+                    <th>Data Path</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-vision">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 5: VIRUS INJECTIONS -->
+        <div id="subtab-virus" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Viral Injection Procedures & Surgeries</h3>
+            <div id="container-virus-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 6: IMAGING & ANALYSIS -->
+        <div id="subtab-imaging" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">2-Photon Imaging Sessions & Analysis Runs</h3>
+            <div id="container-imaging-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 7: MASTER TIMELINE -->
+        <div id="subtab-timeline" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Chronological Master Timeline</h3>
+            <div id="container-animal-timeline" class="pstim-timeline-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =========================================================
+     EMBEDDED DATA & INTERACTIVE CLIENT SCRIPT
+     ========================================================= -->
+<script>
+  const ANIMALS_DATA = {{ animals_json|safe }};
+  let currentAnimalId = null;
+  let activeProfileTab = 'overview';
+
+  function initTracker() {
+    // Populate mouse dropdown selector
+    const sel = document.getElementById('mouse-select-input');
+    sel.innerHTML = '';
+
+    if (ANIMALS_DATA && ANIMALS_DATA.length > 0) {
+      ANIMALS_DATA.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.animal_id;
+        opt.textContent = `${a.animal_id} (${a.genotype || 'Mouse'}, Cage ${a.cage_id})`;
+        sel.appendChild(opt);
+      });
+      currentAnimalId = ANIMALS_DATA[0].animal_id;
+      renderSelectedMouseProfile(currentAnimalId);
+    } else {
+      sel.innerHTML = '<option value="">No animals registered</option>';
+    }
+  }
+
+  function switchTrackerView(viewName) {
+    const dashView = document.getElementById('tracker-dashboard-view');
+    const profView = document.getElementById('tracker-profile-view');
+    const btnDash = document.getElementById('btn-view-dashboard');
+    const btnProf = document.getElementById('btn-view-profile');
+
+    if (viewName === 'dashboard') {
+      dashView.classList.remove('hidden');
+      profView.classList.add('hidden');
+      btnDash.classList.add('active');
+      btnProf.classList.remove('active');
+    } else {
+      dashView.classList.add('hidden');
+      profView.classList.remove('hidden');
+      btnDash.classList.remove('active');
+      btnProf.classList.add('active');
+      if (currentAnimalId) {
+        renderSelectedMouseProfile(currentAnimalId);
+      }
+    }
+  }
+
+  function openMouseProfile(animalId) {
+    switchTrackerView('profile');
+    const sel = document.getElementById('mouse-select-input');
+    if (sel) {
+      sel.value = animalId;
+    }
+    renderSelectedMouseProfile(animalId);
+  }
+
+  function onMouseSelectChange(animalId) {
+    renderSelectedMouseProfile(animalId);
+  }
+
+  function renderSelectedMouseProfile(animalId) {
+    currentAnimalId = animalId;
+    const a = ANIMALS_DATA.find(x => x.animal_id === animalId);
+    if (!a) return;
+
+    // Demographics Banner
+    document.getElementById('disp-animal-id').textContent = a.animal_id;
+    document.getElementById('disp-animal-meta').textContent = 
+      `${a.genotype} • ${a.sex} • Age: ${a.age_in_days} days • Cage: ${a.cage_id} • Project: ${a.project_id} • Owner: ${a.owner}`;
+    
+    const stagePill = document.getElementById('disp-pipeline-stage');
+    stagePill.textContent = a.pipeline_stage;
+    stagePill.className = `pstim-stage-pill stage-${a.pipeline_stage.toLowerCase().replace(/\\s+/g, '-')}`;
+
+    // Admin direct edit link
+    document.getElementById('link-admin-edit').href = `/admin/animals_metadata/animal/${a.id}/change/`;
+
+    // Quick Metrics
+    document.getElementById('metric-baseline').textContent = a.baseline_weight ? `${a.baseline_weight} g` : '—';
+    document.getElementById('metric-latest-wt').textContent = a.latest_weight ? `${a.latest_weight} g` : '—';
+    
+    const pctEl = document.getElementById('metric-pct');
+    if (a.latest_pct != null) {
+      const cls = a.latest_pct >= 85 ? 'good' : (a.latest_pct >= 80 ? 'warn' : 'bad');
+      pctEl.innerHTML = `<span class="pstim-pill ${cls}">${a.latest_pct}%</span>`;
+    } else {
+      pctEl.innerHTML = '<span class="pstim-muted">—</span>';
+    }
+
+    document.getElementById('metric-water').textContent = a.restriction_day_str;
+
+    // Render active sub-tab
+    renderSubTabContent(a);
+  }
+
+  function switchProfileTab(tabName) {
+    activeProfileTab = tabName;
+    document.querySelectorAll('.pstim-subnav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tabName));
+    });
+
+    document.querySelectorAll('.pstim-subtab-panel').forEach(p => p.classList.add('hidden'));
+    const target = document.getElementById(`subtab-${tabName}`);
+    if (target) {
+      target.classList.remove('hidden');
+    }
+
+    const a = ANIMALS_DATA.find(x => x.animal_id === currentAnimalId);
+    if (a) {
+      renderSubTabContent(a);
+    }
+  }
+
+  function renderSubTabContent(a) {
+    // 1. Overview Canvas Chart
+    if (activeProfileTab === 'overview') {
+      drawWeightCanvas('canvas-overview-weight', a);
+    }
+
+    // 2. Weights Table
+    if (activeProfileTab === 'weights') {
+      const tbody = document.getElementById('tbody-weights');
+      if (a.weights && a.weights.length > 0) {
+        tbody.innerHTML = a.weights.map(w => {
+          const cls = w.pct ? (w.pct >= 85 ? 'good' : (w.pct >= 80 ? 'warn' : 'bad')) : '';
+          const pill = w.pct ? `<span class="pstim-pill ${cls}">${w.pct}%</span>` : '—';
+          return `<tr>
+            <td><strong>${w.date}</strong></td>
+            <td>${w.weight_g} g</td>
+            <td>${pill}</td>
+            <td class="pstim-muted">${w.notes || '—'}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="4" class="pstim-empty-cell">No body weight records logged.</td></tr>';
+      }
+    }
+
+    // 3. Water Restriction
+    if (activeProfileTab === 'water') {
+      const infoEl = document.getElementById('disp-water-status');
+      infoEl.innerHTML = `
+        <strong>Restriction Protocol Status:</strong> ${a.restriction_day_str}<br>
+        <span class="pstim-muted">Start Date: ${a.water_start_date || 'Not set'} • Target: 85% Baseline • Minimum: 80% Baseline</span>
+      `;
+      const tbody = document.getElementById('tbody-water-weights');
+      if (a.weights && a.weights.length > 0) {
+        tbody.innerHTML = a.weights.map(w => {
+          const cls = w.pct ? (w.pct >= 85 ? 'good' : (w.pct >= 80 ? 'warn' : 'bad')) : '';
+          const pill = w.pct ? `<span class="pstim-pill ${cls}">${w.pct}%</span>` : '—';
+          return `<tr>
+            <td><strong>${w.date}</strong></td>
+            <td>${w.weight_g} g</td>
+            <td>${pill}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="3" class="pstim-empty-cell">No weight records logged under restriction.</td></tr>';
+      }
+    }
+
+    // 4. Vision Checks
+    if (activeProfileTab === 'vision') {
+      const tbody = document.getElementById('tbody-vision');
+      if (a.vision && a.vision.length > 0) {
+        tbody.innerHTML = a.vision.map(v => {
+          const isPass = v.result.toLowerCase().includes('pass') || v.result === 'P';
+          const pill = `<span class="pstim-pill ${isPass ? 'good' : 'bad'}">${v.result}</span>`;
+          return `<tr>
+            <td><strong>${v.type}</strong></td>
+            <td>${pill}</td>
+            <td><code class="pstim-code">${v.data_path || '—'}</code></td>
+          </tr>`;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="3" class="pstim-empty-cell">No vision checks recorded.</td></tr>';
+      }
+    }
+
+    // 5. Virus Injections
+    if (activeProfileTab === 'virus') {
+      const box = document.getElementById('container-virus-records');
+      if (a.viruses && a.viruses.length > 0) {
+        box.innerHTML = a.viruses.map(v => `
+          <div class="pstim-record-card">
+            <div class="pstim-record-header">
+              <strong>Injection Date: ${v.date}</strong> (Person: ${v.person})
+              <span class="pstim-record-sub">Surgery Date: ${v.surgery_date} (${v.surgery_person})</span>
+            </div>
+            <div class="pstim-record-body">
+              <strong>Constructs & Volumes:</strong>
+              <ul class="pstim-record-list">
+                ${v.injections.map(i => `<li>${i}</li>`).join('') || '<li>No viral constructs specified</li>'}
+              </ul>
+              ${v.expression ? `<div class="pstim-expression-note"><strong>Expression:</strong> <code>${v.expression}</code></div>` : ''}
+              ${v.notes ? `<div class="pstim-notes-note"><strong>Notes:</strong> ${v.notes}</div>` : ''}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        box.innerHTML = '<div class="pstim-empty-state">No viral injection records found for this animal.</div>';
+      }
+    }
+
+    // 6. Imaging & Analysis
+    if (activeProfileTab === 'imaging') {
+      const box = document.getElementById('container-imaging-records');
+      if (a.imaging && a.imaging.length > 0) {
+        box.innerHTML = a.imaging.map(im => `
+          <div class="pstim-record-card">
+            <div class="pstim-record-header">
+              <strong>Acquisition: ${im.date} — Region: ${im.region}</strong>
+              <span class="pstim-record-sub">Units: ${im.units || 'All'}</span>
+            </div>
+            <div class="pstim-record-body">
+              <div><strong>MESC File:</strong> <code>${im.mesc_file || '—'}</code></div>
+              <div style="margin-top: 6px;">
+                <strong>Analysis Status:</strong> 
+                <span class="pstim-pill ${im.analysis_performed === 'Yes' ? 'good' : 'warn'}">Performed: ${im.analysis_performed}</span>
+                <span class="pstim-pill ${im.need_for_analysis === 'Yes' ? 'accent' : 'muted'}">Required: ${im.need_for_analysis}</span>
+              </div>
+              ${im.runs && im.runs.length > 0 ? `
+                <div style="margin-top: 10px;">
+                  <strong>Suite2p Analysis Runs:</strong>
+                  <ul class="pstim-record-list">
+                    ${im.runs.map(r => `<li>Run #${r.id} — Status: <strong>${r.status}</strong> (${r.frame_rate} Hz, Completed: ${r.completed_at})</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        box.innerHTML = '<div class="pstim-empty-state">No 2-photon imaging sessions logged for this animal.</div>';
+      }
+    }
+
+    // 7. Timeline
+    if (activeProfileTab === 'timeline') {
+      const box = document.getElementById('container-animal-timeline');
+      if (a.timeline && a.timeline.length > 0) {
+        box.innerHTML = a.timeline.map(e => `
+          <div class="pstim-timeline-item">
+            <div class="pstim-timeline-dot ${e.type}"></div>
+            <div class="pstim-timeline-content">
+              <div class="pstim-timeline-header">
+                <strong>${e.title}</strong>
+                <span class="pstim-timeline-time">${e.date}</span>
+              </div>
+              <div class="pstim-timeline-msg">${e.desc}</div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        box.innerHTML = '<div class="pstim-empty-state">No historical events recorded for this mouse.</div>';
+      }
+    }
+  }
+
+  // Pure HTML5 Canvas Weight Chart
+  function drawWeightCanvas(canvasId, a) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+
+    canvas.width = rect.width * dpr;
+    canvas.height = 240 * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = 240;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const weights = a.weights || [];
+    if (weights.length === 0) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No weight measurement points available to chart.', w / 2, h / 2);
+      return;
+    }
+
+    const padding = { top: 30, right: 30, bottom: 40, left: 50 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+
+    const values = weights.map(x => Number(x.pct) || 100);
+    const minVal = Math.min(70, Math.floor(Math.min(...values) / 5) * 5);
+    const maxVal = Math.max(110, Math.ceil(Math.max(...values) / 5) * 5);
+
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'right';
+
+    const step = 10;
+    for (let v = minVal; v <= maxVal; v += step) {
+      const y = padding.top + chartH - ((v - minVal) / (maxVal - minVal)) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(w - padding.right, y);
+      ctx.stroke();
+      ctx.fillText(`${v}%`, padding.left - 8, y + 4);
+    }
+
+    // 100% Baseline Line
+    if (100 >= minVal && 100 <= maxVal) {
+      const y100 = padding.top + chartH - ((100 - minVal) / (maxVal - minVal)) * chartH;
+      ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y100);
+      ctx.lineTo(w - padding.right, y100);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 80% Safety Line
+    if (80 >= minVal && 80 <= maxVal) {
+      const y80 = padding.top + chartH - ((80 - minVal) / (maxVal - minVal)) * chartH;
+      ctx.strokeStyle = 'rgba(248, 113, 113, 0.4)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y80);
+      ctx.lineTo(w - padding.right, y80);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Plot Line
+    const pts = weights.map((pt, idx) => {
+      const x = weights.length === 1 ? padding.left + chartW / 2 : padding.left + (idx / (weights.length - 1)) * chartW;
+      const val = Number(pt.pct) || 100;
+      const y = padding.top + chartH - ((val - minVal) / (maxVal - minVal)) * chartH;
+      return { x, y, val, date: pt.date };
+    });
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    pts.forEach((p, idx) => {
+      if (idx === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+
+    // Plot Points
+    pts.forEach(p => {
+      ctx.fillStyle = p.val >= 85 ? '#4ade80' : (p.val >= 80 ? '#facc15' : '#f87171');
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+
+    // X Axis Labels
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    if (pts.length > 0) {
+      ctx.fillText(pts[0].date, pts[0].x, h - 12);
+      if (pts.length > 1) {
+        ctx.fillText(pts[pts.length - 1].date, pts[pts.length - 1].x, h - 12);
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initTracker);
+</script>
+{% endblock %}
+
