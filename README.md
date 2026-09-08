@@ -1,8 +1,8 @@
-# PStim Data Analysis Pipeline
+# StimBEAM (Stimulation, Behavioral and Ensemble Activity Mapper, formerly PStim Data Analysis Pipeline)
 
 ⚙️🏗️ **Development in Progress**
 
-PStim Data Analysis Pipeline (**PStim_DAP**) is a modular Django-based framework for managing experimental metadata and selected background data-analysis workflows for laboratory neuroscience projects. I named the current pipeline like this for now, as I will be primarily using this for my own experimental works, but subject to lab feedback, I plan to scale it up for other lab groups, hence the modular approach in designing it.
+**StimBEAM** is a modular Django-based framework for managing experimental metadata and selected background data-analysis workflows for laboratory neuroscience projects. I named the current pipeline like this for now, as I will be primarily using this for my own experimental works, but subject to lab feedback, I plan to scale it up for other lab groups, hence the modular approach in designing it.
 
 The project is designed around independent experimental domains so that different research groups can use only the components relevant to their workflow.
 
@@ -18,7 +18,7 @@ The current development deployment uses a **PostgreSQL database running in Docke
 
 ## Project Goals
 
-PStim_DAP aims to provide a common framework for:
+StimBEAM aims to provide a common framework for:
 
 - structured experimental metadata management;
 - linking experimental records across animals, imaging, training, and viral manipulations;
@@ -495,7 +495,7 @@ training_analysis_worker
 
 ## PostgreSQL Database
 
-PStim_DAP uses **PostgreSQL** as its relational metadata database.
+StimBEAM uses **PostgreSQL** as its relational metadata database.
 
 The Django configuration reads database connection information from environment variables rather than embedding database credentials directly in the source code.
 
@@ -734,7 +734,7 @@ Different research groups should eventually select modules through deployment co
 
 ## Current Development Status
 
-⚠️ **PStim_DAP is under active development.**
+⚠️ **StimBEAM is under active development.**
 
 The current repository represents an evolving research-software framework rather than a finished institutional product.
 
