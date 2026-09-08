@@ -208,9 +208,10 @@
     <div class="pstim-tracker-card" style="margin-top: 20px;">
       <div class="pstim-profile-subnav">
         <button type="button" class="pstim-subnav-btn active" onclick="switchProfileTab('overview')">📋 Overview</button>
-        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('weights')">⚖️ Weights</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('vision')">👁️ Vision</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('virus')">🧬 Virus Injections</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('weights')">⚖️ Weights</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('training')">🎯 Training Sessions</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('imaging')">📷 Imaging & Analysis</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('timeline')">⏳ Master Timeline</button>
       </div>
@@ -228,7 +229,38 @@
           </div>
         </div>
 
-        <!-- SUBTAB 2: WEIGHTS TABLE -->
+        <!-- SUBTAB 2: VISION CHECKS -->
+        <div id="subtab-vision" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Vision Screening & Tests</h3>
+            <div class="pstim-table-responsive">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Test Type</th>
+                    <th>Result</th>
+                    <th>Data Path</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-vision">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 3: VIRUS INJECTIONS -->
+        <div id="subtab-virus" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Viral Injection Procedures & Surgeries</h3>
+            <div id="container-virus-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 4: WEIGHTS TABLE -->
         <div id="subtab-weights" class="pstim-subtab-panel hidden">
           <div class="pstim-card-inner">
             <h3 class="pstim-section-title">Body Weight Measurement History</h3>
@@ -250,32 +282,11 @@
           </div>
         </div>
 
-        <!-- SUBTAB 3: VISION CHECKS -->
-        <div id="subtab-vision" class="pstim-subtab-panel hidden">
+        <!-- SUBTAB 5: TRAINING SESSIONS -->
+        <div id="subtab-training" class="pstim-subtab-panel hidden">
           <div class="pstim-card-inner">
-            <h3 class="pstim-section-title">Vision Screening & Tests</h3>
-            <div class="pstim-table-responsive">
-              <table class="pstim-tracker-table">
-                <thead>
-                  <tr>
-                    <th>Test Type</th>
-                    <th>Result</th>
-                    <th>Data Path</th>
-                  </tr>
-                </thead>
-                <tbody id="tbody-vision">
-                  <!-- Populated dynamically -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUBTAB 5: VIRUS INJECTIONS -->
-        <div id="subtab-virus" class="pstim-subtab-panel hidden">
-          <div class="pstim-card-inner">
-            <h3 class="pstim-section-title">Viral Injection Procedures & Surgeries</h3>
-            <div id="container-virus-records">
+            <h3 class="pstim-section-title">Behavior Training Sessions & Licking Analysis</h3>
+            <div id="container-training-records">
               <!-- Populated dynamically -->
             </div>
           </div>
@@ -291,7 +302,7 @@
           </div>
         </div>
 
-        <!-- SUBTAB 7: MASTER TIMELINE -->
+        <!-- SUBTAB 6: MASTER TIMELINE -->
         <div id="subtab-timeline" class="pstim-subtab-panel hidden">
           <div class="pstim-card-inner">
             <h3 class="pstim-section-title">Chronological Master Timeline</h3>
@@ -436,10 +447,23 @@
         tbody.innerHTML = a.vision.map(v => {
           const isPass = v.result.toLowerCase().includes('pass') || v.result === 'P';
           const pill = `<span class="pstim-pill ${isPass ? 'good' : 'bad'}">${v.result}</span>`;
+          
+          const pathHtml = v.data_path ? `
+            <div style="display: grid; grid-template-columns: max-content 1fr; column-gap: 6px; align-items: center;">
+              <button type="button" class="pstim-copy-button" data-copy-text="${v.data_path}" title="Copy vision data path" aria-label="Copy vision data path">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+                </svg>
+              </button>
+              <code class="pstim-code" style="overflow-wrap: anywhere;">${v.data_path}</code>
+            </div>
+          ` : '<span class="pstim-muted">—</span>';
+
           return `<tr>
             <td><strong>${v.type}</strong></td>
             <td>${pill}</td>
-            <td><code class="pstim-code">${v.data_path || '—'}</code></td>
+            <td>${pathHtml}</td>
           </tr>`;
         }).join('');
       } else {
@@ -451,22 +475,45 @@
     if (activeProfileTab === 'virus') {
       const box = document.getElementById('container-virus-records');
       if (a.viruses && a.viruses.length > 0) {
-        box.innerHTML = a.viruses.map(v => `
-          <div class="pstim-record-card">
-            <div class="pstim-record-header">
-              <strong>Injection Date: ${v.date}</strong> (Person: ${v.person})
-              <span class="pstim-record-sub">Surgery Date: ${v.surgery_date} (${v.surgery_person})</span>
+        box.innerHTML = a.viruses.map(v => {
+          // 1. Build copyable expression MESC file path widget
+          const expressionHtml = v.expression ? `
+            <div class="pstim-expression-note" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+              <strong>Expression:</strong>
+              <button type="button" class="pstim-copy-button" data-copy-text="${v.expression}" title="Copy MESC file path" aria-label="Copy MESC file path">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+                </svg>
+              </button>
+              <code class="pstim-code" style="overflow-wrap: anywhere;">${v.expression}</code>
             </div>
-            <div class="pstim-record-body">
-              <strong>Constructs & Volumes:</strong>
-              <ul class="pstim-record-list">
-                ${v.injections.map(i => `<li>${i}</li>`).join('') || '<li>No viral constructs specified</li>'}
-              </ul>
-              ${v.expression ? `<div class="pstim-expression-note"><strong>Expression:</strong> <code>${v.expression}</code></div>` : ''}
-              ${v.notes ? `<div class="pstim-notes-note"><strong>Notes:</strong> ${v.notes}</div>` : ''}
+          ` : '';
+
+          // 3a. Return record card markup
+          return `
+            <div class="pstim-record-card">
+              <div class="pstim-record-header">
+                <div>
+                  <strong>Injection Date: ${v.date}</strong> <span class="pstim-muted">(${v.person})</span>
+                </div>
+              </div>
+              <div class="pstim-record-body">
+                <div>
+                  <strong>Surgery Date:</strong> ${v.surgery_date} (${v.surgery_person})
+                </div>
+                <div style="margin-top: 8px;">
+                  <strong>Constructs & Volumes:</strong>
+                </div>
+                <ul class="pstim-record-list">
+                  ${v.injections.map(i => `<li>${i}</li>`).join('') || '<li>No viral constructs specified</li>'}
+                </ul>
+                ${expressionHtml}
+                ${v.notes ? `<div class="pstim-notes-note" style="margin-top: 6px;"><strong>Notes:</strong> ${v.notes}</div>` : ''}
+              </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } else {
         box.innerHTML = '<div class="pstim-empty-state">No viral injection records found for this animal.</div>';
       }
@@ -491,40 +538,110 @@
       }
     }
 
-    // 5. Imaging & Analysis
+    // 5. Training Sessions
+    if (activeProfileTab === 'training') {
+      const box = document.getElementById('container-training-records');
+      if (a.training_sessions && a.training_sessions.length > 0) {
+        box.innerHTML = a.training_sessions.map(ts => {
+          const bpodPathHtml = ts.bpod_file ? `
+            <div style="display: inline-flex; align-items: center; gap: 8px; margin-left: 6px;">
+              <button type="button" class="pstim-copy-button" data-copy-text="${ts.bpod_file}" title="Copy BPod file path" aria-label="Copy BPod file path">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+                </svg>
+              </button>
+              <code class="pstim-code" style="overflow-wrap: anywhere;">${ts.bpod_file}</code>
+            </div>
+          ` : '<span class="pstim-muted" style="margin-left: 6px;">—</span>';
+
+          const isCompleted = (ts.status || '').toLowerCase().includes('complete') || ts.status === 'SUCCESS';
+          const isFailed = (ts.status || '').toLowerCase().includes('fail') || (ts.status || '').toLowerCase().includes('error');
+          const statusClass = isCompleted ? 'good' : (isFailed ? 'bad' : 'warn');
+          const statusPill = `<span class="pstim-pill ${statusClass}">${ts.status || '—'}</span>`;
+
+          // 5a. Return record card markup
+          return `
+            <div class="pstim-record-card">
+              <div class="pstim-record-header">
+                <strong>Training Date: ${ts.date}</strong>
+              </div>
+              <div class="pstim-record-body">
+                <div>
+                  <strong>Unit Range:</strong> ${ts.units || 'All units'}
+                </div>
+                <div style="display: flex; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                  <strong>BPod File:</strong>
+                  ${bpodPathHtml}
+                </div>
+                <div style="margin-top: 8px;">
+                  <strong>Pipeline Status:</strong> ${statusPill}
+                </div>
+                ${ts.notes ? `<div class="pstim-notes-note" style="margin-top: 8px;"><strong>Notes:</strong> ${ts.notes}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        box.innerHTML = '<div class="pstim-empty-state">No behavior training sessions logged for this animal.</div>';
+      }
+    }
+
+    // 6. Imaging & Analysis
     if (activeProfileTab === 'imaging') {
       const box = document.getElementById('container-imaging-records');
       if (a.imaging && a.imaging.length > 0) {
-        box.innerHTML = a.imaging.map(im => `
-          <div class="pstim-record-card">
-            <div class="pstim-record-header">
-              <strong>Acquisition: ${im.date} — Region: ${im.region}</strong>
-              <span class="pstim-record-sub">Units: ${im.units || 'All'}</span>
+        box.innerHTML = a.imaging.map(im => {
+          // 1. Build copyable MESC file path widget
+          const mescPathHtml = im.mesc_file ? `
+            <div style="display: inline-flex; align-items: center; gap: 8px; margin-left: 6px;">
+              <button type="button" class="pstim-copy-button" data-copy-text="${im.mesc_file}" title="Copy MESC file path" aria-label="Copy MESC file path">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+                </svg>
+              </button>
+              <code class="pstim-code" style="overflow-wrap: anywhere;">${im.mesc_file}</code>
             </div>
-            <div class="pstim-record-body">
-              <div><strong>MESC File:</strong> <code>${im.mesc_file || '—'}</code></div>
-              <div style="margin-top: 6px;">
-                <strong>Analysis Status:</strong> 
-                <span class="pstim-pill ${im.analysis_performed === 'Yes' ? 'good' : 'warn'}">Performed: ${im.analysis_performed}</span>
-                <span class="pstim-pill ${im.need_for_analysis === 'Yes' ? 'accent' : 'muted'}">Required: ${im.need_for_analysis}</span>
+          ` : '<span class="pstim-muted" style="margin-left: 6px;">—</span>';
+
+          // 6a. Return record card markup
+          return `
+            <div class="pstim-record-card">
+              <div class="pstim-record-header">
+                <strong>Acquisition: ${im.date} — Region: ${im.region}</strong>
               </div>
-              ${im.runs && im.runs.length > 0 ? `
-                <div style="margin-top: 10px;">
-                  <strong>Suite2p Analysis Runs:</strong>
-                  <ul class="pstim-record-list">
-                    ${im.runs.map(r => `<li>Run #${r.id} — Status: <strong>${r.status}</strong> (${r.frame_rate} Hz, Completed: ${r.completed_at})</li>`).join('')}
-                  </ul>
+              <div class="pstim-record-body">
+                <div>
+                  <strong>Units:</strong> ${im.units || 'All'}</span>
                 </div>
-              ` : ''}
+                <div style="display: flex; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                  <strong>MESC File:</strong>
+                  ${mescPathHtml}
+                </div>
+                <div style="margin-top: 8px;">
+                  <strong>Analysis Status:</strong> 
+                  <span class="pstim-pill ${im.analysis_performed === 'Yes' ? 'good' : 'warn'}">Performed: ${im.analysis_performed}</span>
+                  <span class="pstim-pill ${im.need_for_analysis === 'Yes' ? 'accent' : 'muted'}">Required: ${im.need_for_analysis}</span>
+                </div>
+                ${im.runs && im.runs.length > 0 ? `
+                  <div style="margin-top: 10px;">
+                    <strong>Suite2p Analysis Runs:</strong>
+                    <ul class="pstim-record-list">
+                      ${im.runs.map(r => `<li>Run #${r.id} — Status: <strong>${r.status}</strong> (${r.frame_rate} Hz, Completed: ${r.completed_at})</li>`).join('')}
+                    </ul>
+                  </div>
+                ` : ''}
+              </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } else {
         box.innerHTML = '<div class="pstim-empty-state">No 2-photon imaging sessions logged for this animal.</div>';
       }
     }
 
-    // 7. Timeline
+    // 6. Timeline
     if (activeProfileTab === 'timeline') {
       const box = document.getElementById('container-animal-timeline');
       if (a.timeline && a.timeline.length > 0) {

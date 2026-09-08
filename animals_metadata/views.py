@@ -21,11 +21,12 @@ def mouse_tracker_view(request):
     has_imaging = apps.is_installed("imaging_metadata")
     has_imaging_analysis = apps.is_installed("imaging_analysis_metadata")
 
-    # Pre-fetch body weights if training_metadata is active
+    # Pre-fetch body weights and training sessions if training_metadata is active
     body_weights_by_animal = {}
+    training_by_animal = {}
     if has_training:
         try:
-            from training_metadata.models import MouseBodyWeight, BodyWeightEntry
+            from training_metadata.models import MouseBodyWeight, BodyWeightEntry, TrainingSession
             trackers = MouseBodyWeight.objects.prefetch_related("entries").all()
             for t in trackers:
                 body_weights_by_animal[t.animal_id] = {
@@ -33,6 +34,9 @@ def mouse_tracker_view(request):
                     "water_start": t.water_restriction_start_date,
                     "entries": list(t.entries.all().order_by("date", "id")),
                 }
+            ts_qs = TrainingSession.objects.all().order_by("-training_date")
+            for ts in ts_qs:
+                training_by_animal.setdefault(ts.animal_id, []).append(ts)
         except Exception:
             pass
 
@@ -179,6 +183,22 @@ def mouse_tracker_view(request):
                 "runs": runs,
             })
 
+        # Prepare training sessions list
+        train_list = []
+        for ts in training_by_animal.get(a.id, []):
+            train_list.append({
+                "id": ts.id,
+                "date": str(ts.training_date) if ts.training_date else "—",
+                "bpod_file": ts.bpod_file_path or "",
+                "units": ts.training_unit_range or "",
+                "status": ts.get_status_display() if hasattr(ts, "get_status_display") else (ts.status or "—"),
+                "plot_path": ts.output_plot_path or "",
+                "raster_path": ts.output_raster_path or "",
+                "excel_path": ts.output_excel_path or "",
+                "metrics": ts.metrics_json or {},
+                "notes": ts.notes or "",
+            })
+
         # Build master timeline for this animal
         timeline = []
         if a.dob:
@@ -190,6 +210,9 @@ def mouse_tracker_view(request):
                 timeline.append({"date": vi["surgery_date"], "type": "surgery", "title": "Surgery", "desc": f"Surgery performed by {vi['surgery_person']}"})
         if water_start:
             timeline.append({"date": str(water_start), "type": "water", "title": "Water Restriction Started", "desc": f"Water restriction protocol initiated on {water_start}"})
+        for ts in train_list:
+            if ts["date"] != "—":
+                timeline.append({"date": ts["date"], "type": "training", "title": "Behavior Training Session", "desc": f"BPod Session: {ts['units'] or 'All units'} (Status: {ts['status']})"})
         for im in im_list:
             timeline.append({"date": im["date"], "type": "imaging", "title": "2P Imaging Session", "desc": f"Acquisition: {im['region']} ({im['units'] or 'All units'})"})
         if weights_list:
@@ -217,6 +240,7 @@ def mouse_tracker_view(request):
             "weights": weights_list,
             "vision": v_list,
             "viruses": inj_list,
+            "training_sessions": train_list,
             "imaging": im_list,
             "timeline": timeline,
         })

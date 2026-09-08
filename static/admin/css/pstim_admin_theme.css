@@ -2615,6 +2615,9 @@ body.dashboard #content-related {
 .pstim-timeline-dot.imaging {
   background: #60a5fa;
 }
+.pstim-timeline-dot.training {
+  background: #fbbf24;
+}
 .pstim-timeline-dot.water {
   background: #facc15;
 }
