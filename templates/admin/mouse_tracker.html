@@ -209,7 +209,6 @@
       <div class="pstim-profile-subnav">
         <button type="button" class="pstim-subnav-btn active" onclick="switchProfileTab('overview')">📋 Overview</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('weights')">⚖️ Weights</button>
-        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('water')">💧 Water Restriction</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('vision')">👁️ Vision</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('virus')">🧬 Virus Injections</button>
         <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('imaging')">📷 Imaging & Analysis</button>
@@ -251,31 +250,7 @@
           </div>
         </div>
 
-        <!-- SUBTAB 3: WATER RESTRICTION -->
-        <div id="subtab-water" class="pstim-subtab-panel hidden">
-          <div class="pstim-card-inner">
-            <h3 class="pstim-section-title">Water Restriction Protocol & Logs</h3>
-            <div id="disp-water-status" class="pstim-info-box">
-              Loading restriction details...
-            </div>
-            <div class="pstim-table-responsive" style="margin-top: 16px;">
-              <table class="pstim-tracker-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Weight (g)</th>
-                    <th>% Baseline</th>
-                  </tr>
-                </thead>
-                <tbody id="tbody-water-weights">
-                  <!-- Populated dynamically -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUBTAB 4: VISION CHECKS -->
+        <!-- SUBTAB 3: VISION CHECKS -->
         <div id="subtab-vision" class="pstim-subtab-panel hidden">
           <div class="pstim-card-inner">
             <h3 class="pstim-section-title">Vision Screening & Tests</h3>
@@ -454,49 +429,7 @@
       drawWeightCanvas('canvas-overview-weight', a);
     }
 
-    // 2. Weights Table
-    if (activeProfileTab === 'weights') {
-      const tbody = document.getElementById('tbody-weights');
-      if (a.weights && a.weights.length > 0) {
-        tbody.innerHTML = a.weights.map(w => {
-          const cls = w.pct ? (w.pct >= 85 ? 'good' : (w.pct >= 80 ? 'warn' : 'bad')) : '';
-          const pill = w.pct ? `<span class="pstim-pill ${cls}">${w.pct}%</span>` : '—';
-          return `<tr>
-            <td><strong>${w.date}</strong></td>
-            <td>${w.weight_g} g</td>
-            <td>${pill}</td>
-            <td class="pstim-muted">${w.notes || '—'}</td>
-          </tr>`;
-        }).join('');
-      } else {
-        tbody.innerHTML = '<tr><td colspan="4" class="pstim-empty-cell">No body weight records logged.</td></tr>';
-      }
-    }
-
-    // 3. Water Restriction
-    if (activeProfileTab === 'water') {
-      const infoEl = document.getElementById('disp-water-status');
-      infoEl.innerHTML = `
-        <strong>Restriction Protocol Status:</strong> ${a.restriction_day_str}<br>
-        <span class="pstim-muted">Start Date: ${a.water_start_date || 'Not set'} • Target: 85% Baseline • Minimum: 80% Baseline</span>
-      `;
-      const tbody = document.getElementById('tbody-water-weights');
-      if (a.weights && a.weights.length > 0) {
-        tbody.innerHTML = a.weights.map(w => {
-          const cls = w.pct ? (w.pct >= 85 ? 'good' : (w.pct >= 80 ? 'warn' : 'bad')) : '';
-          const pill = w.pct ? `<span class="pstim-pill ${cls}">${w.pct}%</span>` : '—';
-          return `<tr>
-            <td><strong>${w.date}</strong></td>
-            <td>${w.weight_g} g</td>
-            <td>${pill}</td>
-          </tr>`;
-        }).join('');
-      } else {
-        tbody.innerHTML = '<tr><td colspan="3" class="pstim-empty-cell">No weight records logged under restriction.</td></tr>';
-      }
-    }
-
-    // 4. Vision Checks
+    // 2. Vision Checks
     if (activeProfileTab === 'vision') {
       const tbody = document.getElementById('tbody-vision');
       if (a.vision && a.vision.length > 0) {
@@ -514,7 +447,7 @@
       }
     }
 
-    // 5. Virus Injections
+    // 3. Virus Injections
     if (activeProfileTab === 'virus') {
       const box = document.getElementById('container-virus-records');
       if (a.viruses && a.viruses.length > 0) {
@@ -539,7 +472,26 @@
       }
     }
 
-    // 6. Imaging & Analysis
+    // 4. Weights Table
+    if (activeProfileTab === 'weights') {
+      const tbody = document.getElementById('tbody-weights');
+      if (a.weights && a.weights.length > 0) {
+        tbody.innerHTML = a.weights.map(w => {
+          const cls = w.pct ? (w.pct >= 85 ? 'good' : (w.pct >= 80 ? 'warn' : 'bad')) : '';
+          const pill = w.pct ? `<span class="pstim-pill ${cls}">${w.pct}%</span>` : '—';
+          return `<tr>
+            <td><strong>${w.date}</strong></td>
+            <td>${w.weight_g} g</td>
+            <td>${pill}</td>
+            <td class="pstim-muted">${w.notes || '—'}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="4" class="pstim-empty-cell">No body weight records logged.</td></tr>';
+      }
+    }
+
+    // 5. Imaging & Analysis
     if (activeProfileTab === 'imaging') {
       const box = document.getElementById('container-imaging-records');
       if (a.imaging && a.imaging.length > 0) {
