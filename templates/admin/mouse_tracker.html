@@ -153,9 +153,10 @@
        ========================================================= -->
   <div id="tracker-profile-view" class="pstim-tracker-view hidden">
     
-    <!-- MOUSE SELECTOR & ACTIONS BAR -->
+    <!-- MOUSE SELECTOR, DEMOGRAPHICS & ACTIONS BAR (SINGLE LEVEL) -->
     <div class="pstim-tracker-card">
-      <div class="pstim-profile-header-row">
+      <div class="pstim-profile-top-bar">
+        <!-- 1. Left: Narrow Dropdown Selector -->
         <div class="pstim-profile-selector-group">
           <label for="mouse-select-input">Select Mouse:</label>
           <select id="mouse-select-input" class="pstim-select" onchange="onMouseSelectChange(this.value)">
@@ -163,23 +164,24 @@
           </select>
         </div>
 
-        <div class="pstim-profile-actions">
-          <a id="link-admin-edit" href="#" class="pstim-btn secondary small" target="_blank">
-            ✏️ Edit in Django Admin
-          </a>
-        </div>
-      </div>
-
-      <!-- TOP DEMOGRAPHICS BANNER -->
-      <div class="pstim-demographics-banner">
-        <div>
-          <h2 id="disp-animal-id" class="pstim-mouse-code">M000</h2>
+        <!-- 2. Middle: Mouse Details & Status Badge (Side-by-side) -->
+        <div class="pstim-demographics-inline">
+          <div class="pstim-mouse-title-row">
+            <h2 id="disp-animal-id" class="pstim-mouse-code">M000</h2>
+            <div id="disp-stage-container">
+              <span id="disp-pipeline-stage" class="pstim-stage-pill accent">Intake</span>
+            </div>
+          </div>
           <div id="disp-animal-meta" class="pstim-mouse-subtext">
             Loading mouse metadata...
           </div>
         </div>
-        <div id="disp-stage-container">
-          <span id="disp-pipeline-stage" class="pstim-stage-pill accent">Intake</span>
+
+        <!-- 3. Right: Admin Action Button -->
+        <div class="pstim-profile-actions">
+          <a id="link-admin-edit" href="#" class="pstim-btn secondary small" target="_blank">
+            ✏️ Edit in Django Admin
+          </a>
         </div>
       </div>
 
@@ -410,7 +412,7 @@
       pctEl.innerHTML = '<span class="pstim-muted">—</span>';
     }
 
-    document.getElementById('metric-water').textContent = a.restriction_day_str;
+    document.getElementById('metric-water').innerHTML = (a.restriction_day_str || '—').replace(' (', '<br>(');
 
     // Render active sub-tab
     renderSubTabContent(a);
@@ -575,7 +577,7 @@
                   ${bpodPathHtml}
                 </div>
                 <div style="margin-top: 8px;">
-                  <strong>Pipeline Status:</strong> ${statusPill}
+                  <strong>Training Data Analysis Status:</strong> ${statusPill}
                 </div>
                 ${ts.notes ? `<div class="pstim-notes-note" style="margin-top: 8px;"><strong>Notes:</strong> ${ts.notes}</div>` : ''}
               </div>

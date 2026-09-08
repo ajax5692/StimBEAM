@@ -2192,26 +2192,37 @@ body.dashboard #content-related {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  padding: 16px;
+  padding: 1px 1px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center; /* Keeps label at the top and value at the bottom */
+  align-items: center;
+  gap: 30px;
+  height: 50px; /* Forces all 4 boxes to be identical in height */
+  box-sizing: border-box;
 }
 
 .pstim-stat-label {
-  font-size: 11.5px;
+  font-size: 20px;
   font-weight: 700;
   text-transform: uppercase;
   color: #94a3b8;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .pstim-stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: #f8fafc;
+  display: flex;
+  align-items: center; /* Centers the % pill and numbers on the exact same line */
+  min-height: 30px;
 }
 
 .pstim-stat-value.good {
-  color: #4ade80;
+  color: #ffffff;
 }
 .pstim-stat-value.warn {
   color: #facc15;
@@ -2220,7 +2231,10 @@ body.dashboard #content-related {
   color: #f87171;
 }
 .pstim-stat-value.small-text {
-  font-size: 15px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
 }
 
 /* 2-Column Dashboard */
@@ -2348,16 +2362,19 @@ body.dashboard #content-related {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.12);
   border: 1px solid rgba(74, 222, 128, 0.3);
+  font-size: 20px;
 }
 .pstim-pill.warn {
   color: #facc15;
   background: rgba(250, 204, 21, 0.12);
   border: 1px solid rgba(250, 204, 21, 0.3);
+  font-size: 20px;
 }
 .pstim-pill.bad {
   color: #f87171;
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.3);
+  font-size: 20px;
 }
 .pstim-pill.accent {
   color: #38bdf8;
@@ -2408,20 +2425,31 @@ body.dashboard #content-related {
   border-color: rgba(167, 139, 250, 0.3);
 }
 
-/* Profile View Styles */
-.pstim-profile-header-row {
+/* Profile View Styles - Single Level Top Bar */
+.pstim-profile-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 14px;
 }
 
 .pstim-profile-selector-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pstim-profile-selector-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .pstim-select {
@@ -2429,20 +2457,56 @@ body.dashboard #content-related {
   color: #f8fafc;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  /* padding: 8px 12px; */
+  padding: 6px 10px;
   font-size: 13px;
   font-weight: 600;
-  width: 300px;
-  height: 50px;
+  width: 190px;
+  height: 36px;
+}
+
+.pstim-demographics-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+  padding: 0 10px;
+}
+
+.pstim-mouse-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pstim-mouse-code {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+}
+
+.pstim-mouse-subtext {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.pstim-profile-actions {
+  flex-shrink: 0;
 }
 
 .pstim-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -2458,31 +2522,6 @@ body.dashboard #content-related {
 .pstim-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #60a5fa;
-}
-
-.pstim-demographics-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 18px;
-}
-
-.pstim-mouse-code {
-  font-size: 26px !important;
-  font-weight: 700 !important;
-  color: #f8fafc !important;
-  margin: 0 !important;
-}
-
-.pstim-mouse-subtext {
-  font-size: 13px;
-  color: #94a3b8;
-  margin-top: 4px;
 }
 
 /* Sub-Navigation Buttons */
