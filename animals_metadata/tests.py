@@ -154,4 +154,75 @@ class AnimalsMetadataTrackChangesTest(TestCase):
         self.assertEqual(res.context["water_restricted_mice"], 1)
 
 
+class MouseTrackerServiceTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.animal = Animal.objects.create(
+            animal_id="SERV01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=self.today,
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.BEHAVIOR_TRAINING,
+        )
+
+    def test_pipeline_distribution_calculation(self):
+        from animals_metadata.services import MouseTrackerService
+
+        sample_data = [
+            {"animal_id": "M01", "pipeline_stage": "Intake", "status": "Alive"},
+            {"animal_id": "M02", "pipeline_stage": "Vision Check", "status": "Alive"},
+            {"animal_id": "M03", "pipeline_stage": "Behavior Training", "status": "Alive"},
+            {"animal_id": "M04", "pipeline_stage": "Culled", "status": "Culled"},
+        ]
+
+        dist = MouseTrackerService.compute_pipeline_distribution(sample_data)
+        self.assertEqual(len(dist), len(MouseTrackerService.PIPELINE_STAGES))
+
+        dist_dict = {d["stage"]: d for d in dist}
+        self.assertEqual(dist_dict["Intake"]["count"], 1)
+        self.assertEqual(dist_dict["Intake"]["animals"], ["M01"])
+        self.assertEqual(dist_dict["Vision Check"]["count"], 1)
+        self.assertEqual(dist_dict["Vision Check"]["animals"], ["M02"])
+        self.assertEqual(dist_dict["Behavior Training"]["count"], 1)
+        self.assertEqual(dist_dict["Behavior Training"]["animals"], ["M03"])
+        self.assertEqual(dist_dict["Culled"]["count"], 1)
+        self.assertEqual(dist_dict["Culled"]["animals"], ["M04"])
+        self.assertEqual(dist_dict["Surgery"]["count"], 0)
+
+    def test_water_restriction_string_formatting(self):
+        from datetime import timedelta
+        from animals_metadata.services import MouseTrackerService
+
+        # Active & started 5 days ago
+        start_date = self.today - timedelta(days=4)
+        s = MouseTrackerService.calculate_restriction_string(True, start_date, self.today)
+        self.assertEqual(s, f"Day 5 (Since {start_date})")
+
+        # Active & no date set
+        s_nodate = MouseTrackerService.calculate_restriction_string(True, None, self.today)
+        self.assertEqual(s_nodate, "Active Training (Date not set)")
+
+        # Inactive & prior start date
+        s_inactive = MouseTrackerService.calculate_restriction_string(False, start_date, self.today)
+        self.assertEqual(s_inactive, f"Not on restriction (Prior start: {start_date})")
+
+        # Inactive & no start date
+        s_none = MouseTrackerService.calculate_restriction_string(False, None, self.today)
+        self.assertEqual(s_none, "Not on restriction")
+
+    def test_tracker_dashboard_context_generation(self):
+        from animals_metadata.services import MouseTrackerService
+
+        context = MouseTrackerService.get_tracker_dashboard_context(today=self.today)
+        self.assertIn("animals_data", context)
+        self.assertIn("animals_json", context)
+        self.assertIn("pipeline_distribution", context)
+        self.assertIn("recent_activity", context)
+        self.assertEqual(context["total_mice"], 1)
+        self.assertEqual(context["active_mice"], 1)
+        self.assertEqual(context["water_restricted_mice"], 1)
+
+
+
 
