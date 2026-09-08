@@ -1,0 +1,365 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="pstim-tracker-container">
+
+  <!-- =========================================================
+       TOP WORKSTATION NAVIGATION TABS
+       ========================================================= -->
+  <div class="pstim-tracker-nav">
+    <button type="button" class="pstim-tracker-tab active" id="btn-view-dashboard" onclick="switchTrackerView('dashboard')">
+      📊 Laboratory Dashboard
+    </button>
+    <button type="button" class="pstim-tracker-tab" id="btn-view-profile" onclick="switchTrackerView('profile')">
+      🔍 Mouse Profile Workstation
+    </button>
+  </div>
+
+  <!-- =========================================================
+       VIEW 1: LABORATORY DASHBOARD
+       ========================================================= -->
+  <div id="tracker-dashboard-view" class="pstim-tracker-view">
+    
+    <!-- STATS GRID (EXCLUDING <80% AND BEHAVIOR SESSIONS) -->
+    <div class="pstim-tracker-card">
+      <div class="pstim-tracker-card-header">
+        <div>
+          <h2 class="pstim-tracker-card-title">Laboratory Dashboard</h2>
+          <span class="pstim-tracker-card-subtitle">Active colony metrics & daily animal tracking overview</span>
+        </div>
+        <span class="pstim-tracker-date-badge">Today: {{ today|date:"Y-m-d" }}</span>
+      </div>
+
+      <div class="pstim-tracker-grid">
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Total Mice</div>
+          <div class="pstim-stat-value">{{ total_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Active Mice</div>
+          <div class="pstim-stat-value">{{ active_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Water Restricted</div>
+          <div class="pstim-stat-value">{{ water_restricted_mice }}</div>
+        </div>
+
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Not Weighed Today</div>
+          <div class="pstim-stat-value {% if not_weighed_today_count > 0 %}warn{% else %}good{% endif %}">
+            {{ not_weighed_today_count }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY WEIGHING ALERT (IF ANY) -->
+    {% if not_weighed_today_count > 0 %}
+      <div class="pstim-alert-banner warn">
+        <div class="pstim-alert-title">⏳ Water-restricted mice still to weigh today ({{ not_weighed_today_count }}):</div>
+        <div class="pstim-alert-list">
+          {% for a in not_weighed_today_animals %}
+            <button type="button" class="pstim-animal-pill-btn" onclick="openMouseProfile('{{ a.animal_id }}')">
+              🐁 {{ a.animal_id }} {% if a.cage_id %}(Cage {{ a.cage_id }}){% endif %}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- 2-COLUMN SECTION: PIPELINE DISTRIBUTION + RECENT ACTIVITY -->
+    <div class="pstim-dashboard-columns">
+      
+      <!-- PIPELINE DISTRIBUTION TABLE -->
+      <div class="pstim-tracker-card">
+        <div class="pstim-tracker-card-header">
+          <h3 class="pstim-tracker-card-title">Experimental Pipeline Distribution</h3>
+        </div>
+        
+        <div class="pstim-table-responsive">
+          <table class="pstim-tracker-table">
+            <thead>
+              <tr>
+                <th>Pipeline Stage</th>
+                <th>Count</th>
+                <th>Animals</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pipeline_distribution %}
+                <tr>
+                  <td>
+                    <span class="pstim-stage-pill stage-{{ p.stage|slugify }}">{{ p.stage }}</span>
+                  </td>
+                  <td><strong>{{ p.count }}</strong></td>
+                  <td>
+                    {% if p.animals %}
+                      <div class="pstim-animal-inline-list">
+                        {% for code in p.animals %}
+                          <button type="button" class="pstim-code-link" onclick="openMouseProfile('{{ code }}')">
+                            {{ code }}
+                          </button>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <span class="pstim-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RECENT MASTER ACTIVITY -->
+      <div class="pstim-tracker-card">
+        <div class="pstim-tracker-card-header">
+          <h3 class="pstim-tracker-card-title">Recent Master Activity</h3>
+        </div>
+
+        <div class="pstim-timeline-list">
+          {% for act in recent_activity %}
+            <div class="pstim-timeline-item">
+              <div class="pstim-timeline-dot"></div>
+              <div class="pstim-timeline-content">
+                <div class="pstim-timeline-header">
+                  <strong>{{ act.object_repr }}</strong>
+                  <span class="pstim-timeline-time">{{ act.time }}</span>
+                </div>
+                <div class="pstim-timeline-msg">{{ act.change_message }}</div>
+                <div class="pstim-timeline-user">By {{ act.user }}</div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="pstim-empty-state">No recent activity logged.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================
+       VIEW 2: MOUSE-CENTRIC PROFILE WORKSTATION
+       ========================================================= -->
+  <div id="tracker-profile-view" class="pstim-tracker-view hidden">
+    
+    <!-- MOUSE SELECTOR, DEMOGRAPHICS & ACTIONS BAR (SINGLE LEVEL) -->
+    <div class="pstim-tracker-card">
+      <div class="pstim-profile-top-bar">
+        <!-- 1. Left: Narrow Dropdown Selector -->
+        <div class="pstim-profile-selector-group">
+          <label for="mouse-select-input">Select Mouse:</label>
+          <select id="mouse-select-input" class="pstim-select" onchange="onMouseSelectChange(this.value)">
+            <!-- Options dynamically populated by JavaScript -->
+          </select>
+        </div>
+
+        <!-- 2. Middle: Mouse Details & Status Badge (Side-by-side) -->
+        <div class="pstim-demographics-inline">
+          <div class="pstim-mouse-title-row">
+            <h2 id="disp-animal-id" class="pstim-mouse-code">M000</h2>
+            <div id="disp-stage-container">
+              <span id="disp-pipeline-stage" class="pstim-stage-pill accent">Intake</span>
+            </div>
+          </div>
+          <div id="disp-animal-meta" class="pstim-mouse-subtext">
+            Loading mouse metadata...
+          </div>
+        </div>
+
+        <!-- 3. Right: Admin Action Button -->
+        <div class="pstim-profile-actions">
+          <a id="link-admin-edit" href="#" class="pstim-btn secondary small" target="_blank">
+            ✏️ Edit in Django Admin
+          </a>
+        </div>
+      </div>
+
+      <!-- QUICK METRICS GRID -->
+      <div class="pstim-tracker-grid quick-metrics">
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Baseline Weight</div>
+          <div id="metric-baseline" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Latest Weight</div>
+          <div id="metric-latest-wt" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">% Baseline</div>
+          <div id="metric-pct" class="pstim-stat-value">—</div>
+        </div>
+        <div class="pstim-stat-box">
+          <div class="pstim-stat-label">Water Restriction</div>
+          <div id="metric-water" class="pstim-stat-value small-text">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOUSE PROFILE DETAIL SUB-TABS -->
+    <div class="pstim-tracker-card" style="margin-top: 20px;">
+      <div class="pstim-profile-subnav">
+        <button type="button" class="pstim-subnav-btn active" onclick="switchProfileTab('overview')">📋 Overview</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('vision')">👁️ Vision</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('virus')">🧬 Virus Injections</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('weights')">⚖️ Weights</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('training')">🎯 Training Sessions</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('imaging')">📷 Imaging & Analysis</button>
+        <button type="button" class="pstim-subnav-btn" onclick="switchProfileTab('timeline')">⏳ Master Timeline</button>
+      </div>
+
+      <!-- SUBTAB CONTENTS -->
+      <div id="profile-subtab-container" class="pstim-subtab-body">
+        
+        <!-- SUBTAB 1: OVERVIEW -->
+        <div id="subtab-overview" class="pstim-subtab-panel">
+          <div class="pstim-overview-grid">
+            
+            <!-- Left Graph: Body Weight Progression -->
+            <div class="pstim-overview-card">
+              <div class="pstim-chart-header">
+                <div class="pstim-chart-title">
+                  <span>⚖️ Body Weight Progression</span>
+                </div>
+                <div class="pstim-chart-badges" id="overview-weight-badges"></div>
+              </div>
+              <div class="pstim-canvas-container" id="overview-weight-canvas-container">
+                <canvas id="canvas-overview-weight"></canvas>
+                <div id="overview-weight-empty" class="pstim-chart-empty" style="display: none;">
+                  <span>No body weight records recorded yet.</span>
+                </div>
+                <div id="overview-weight-tooltip" class="pstim-chart-tooltip"></div>
+              </div>
+            </div>
+
+            <!-- Right Graph: Reserved Space for Future Analytics -->
+            <div class="pstim-overview-card pstim-overview-placeholder">
+              <div class="pstim-chart-header">
+                <div class="pstim-chart-title">
+                  <span>📊 Behavioral Performance & Analytics</span>
+                </div>
+                <div class="pstim-chart-badges">
+                  <span class="pstim-pill accent">Upcoming Feature</span>
+                </div>
+              </div>
+              <div class="pstim-canvas-container pstim-placeholder-container">
+                <div class="pstim-placeholder-content">
+                  <div class="pstim-placeholder-icon">📈</div>
+                  <div class="pstim-placeholder-title">Analytics Plot Reserved</div>
+                  <div class="pstim-placeholder-desc">
+                    Calculation modules and performance metrics are currently under development. This visualization slot is reserved for upcoming behavioral and trial response curves.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SUBTAB 2: VISION CHECKS -->
+        <div id="subtab-vision" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Vision Screening & Tests</h3>
+            <div class="pstim-table-responsive">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Test Type</th>
+                    <th>Result</th>
+                    <th>Data Path</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-vision">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 3: VIRUS INJECTIONS -->
+        <div id="subtab-virus" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Viral Injection Procedures & Surgeries</h3>
+            <div id="container-virus-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 4: WEIGHTS TABLE -->
+        <div id="subtab-weights" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Body Weight Measurement History</h3>
+            <div class="pstim-table-responsive">
+              <table class="pstim-tracker-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Weight (g)</th>
+                    <th>% Baseline</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-weights">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 5: TRAINING SESSIONS -->
+        <div id="subtab-training" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Behavior Training Sessions & Licking Analysis</h3>
+            <div id="container-training-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 6: IMAGING & ANALYSIS -->
+        <div id="subtab-imaging" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">2-Photon Imaging Sessions & Analysis Runs</h3>
+            <div id="container-imaging-records">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBTAB 6: MASTER TIMELINE -->
+        <div id="subtab-timeline" class="pstim-subtab-panel hidden">
+          <div class="pstim-card-inner">
+            <h3 class="pstim-section-title">Chronological Master Timeline</h3>
+            <div id="container-animal-timeline" class="pstim-timeline-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =========================================================
+     EMBEDDED DATA & MODULAR CLIENT SCRIPT
+     ========================================================= -->
+<script id="pstim-animals-data" type="application/json">{{ animals_json|safe }}</script>
+<script src="{% static 'admin/js/mouse_tracker.js' %}"></script>
+{% endblock %}
+

@@ -12,6 +12,59 @@
   display: none !important;
 }
 
+/* Hide breadcrumbs across all admin pages */
+.breadcrumbs {
+  display: none !important;
+}
+
+/* =========================================================
+   NESTED SUBMENU (FLYOUT) STYLES
+   ========================================================= */
+
+.pstim-dropdown-submenu {
+  position: relative;
+}
+
+.pstim-submenu-trigger {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  cursor: pointer;
+}
+
+.pstim-submenu-caret {
+  font-size: 9px;
+  margin-left: 12px;
+  opacity: 0.6;
+}
+
+/* Secondary Flyout Menu (opens to the right of the parent item) */
+.pstim-submenu-dropdown {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 210px;
+  background-color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  padding: 6px 0;
+  z-index: 1002;
+}
+
+/* Show flyout on hover */
+.pstim-dropdown-submenu:hover > .pstim-submenu-dropdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.pstim-dropdown-submenu:hover > .pstim-submenu-trigger {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ebfa60 !important;
+}
+
 /* =========================================================
      ANALYSIS RUNNING SPINNER
      ========================================================= */
@@ -39,9 +92,18 @@
      PAGE WIDTH
      ========================================================= */
 
-.main {
+/* static/admin/css/pstim_admin_theme.css */
+
+.main > .content,
+.main.shifted > .content,
+.main > #nav-sidebar + .content,
+.main.shifted > #nav-sidebar + .content,
+#content-start.content {
+  max-width: 100% !important;
   width: 100% !important;
-  max-width: none !important;
+  flex: 1 1 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 #content {
@@ -49,7 +111,7 @@
   max-width: none !important;
 
   padding-left: 18px !important;
-  padding-right: 18px !important;
+  padding-right: 1px !important;
 
   box-sizing: border-box !important;
 }
@@ -69,26 +131,26 @@
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: center !important;
-
   width: 100% !important;
-
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
   box-sizing: border-box !important;
 }
-
+/* 2. Inset the title 18px from the left screen edge */
 #branding {
   order: 1 !important;
   flex: 0 0 auto !important;
+  padding-left: 18px !important;
 }
-
+/* 3. Inset the user links 18px from the right screen edge */
 #user-tools {
   order: 2 !important;
-
   margin-left: auto !important;
-
   flex: 0 0 auto !important;
-
   text-align: right !important;
   white-space: nowrap !important;
+  padding-right: 18px !important;
 }
 
 /* =========================================================
@@ -97,17 +159,14 @@
 
 .pstim-top-nav {
   order: 3 !important;
-
   flex: 0 0 100% !important;
   width: 100% !important;
-
-  margin-top: 8px !important;
-
+  margin-top: 10px !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   background: var(--body-bg);
-
   border-top: 1px solid var(--hairline-color);
   border-bottom: 1px solid var(--hairline-color);
-
   box-sizing: border-box !important;
 }
 
@@ -174,7 +233,7 @@
   min-width: 220px;
   padding: 6px 0;
 
-  background: var(--body-bg);
+  background: #1e293b !important;
 
   border: 1px solid var(--hairline-color);
   border-top: 0;
@@ -205,7 +264,68 @@
 
 .pstim-dropdown a:hover,
 .pstim-dropdown a:focus {
+  background: #334155 !important;
+  color: #ebfa60 !important;
+}
+
+/* =========================================================
+   TOP APP NAVIGATION — NESTED SUBMENU FLYOUTS
+   ========================================================= */
+
+.pstim-dropdown-submenu {
+  position: relative;
+}
+
+.pstim-submenu-trigger {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px;
+}
+
+.pstim-submenu-caret {
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+
+.pstim-dropdown-submenu:hover .pstim-submenu-caret {
+  opacity: 1;
+  color: var(--accent, #60a5fa);
+}
+
+.pstim-submenu-dropdown {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 220px;
+  padding: 6px 0;
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  z-index: 10001;
+}
+
+.pstim-dropdown-submenu:hover > .pstim-submenu-dropdown,
+.pstim-dropdown-submenu:focus-within > .pstim-submenu-dropdown {
+  display: block;
+}
+
+.pstim-submenu-dropdown a {
+  display: block;
+  padding: 9px 14px;
+  color: var(--body-fg);
+  background: var(--body-bg);
+  white-space: nowrap;
+  text-decoration: none;
+  border-right: 0 !important;
+}
+
+.pstim-submenu-dropdown a:hover {
   background: var(--darkened-bg);
+  color: var(--accent, #60a5fa);
 }
 
 /*
@@ -441,29 +561,38 @@ body.app-imaging_analysis_metadata.model-analysisrun.change-list
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-created_at,
+  th.column-created_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-created_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-started_at,
+  th.column-started_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-started_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
-  th.column-completed_at,
+  th.column-completed_at {
+  width: 9% !important;
+}
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
   #result_list
   td.field-completed_at {
   width: 9% !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_analysis_metadata.model-analysisrun.change-list
@@ -539,36 +668,55 @@ body.app-imaging_analysis_metadata.model-analysisrun.change-list
      ANIMALS TABLE — ANIMAL ID COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(2),
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(2) {
-  width: 110px !important;
-  min-width: 110px !important;
+  th.column-animal_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-animal_id {
+  width: 80px !important;
 }
 
 /* =========================================================
      ANIMALS TABLE — OWNER COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(3),
+body.app-animals_metadata.model-animal.change-list #result_list th.column-owner,
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(3) {
-  width: 150px !important;
-  min-width: 150px !important;
+  td.column-owner {
+  width: 100px !important;
 }
 
 /* =========================================================
-     ANIMALS TABLE — PROJECT ID COLUMN
+     ANIMALS TABLE — SEX COLUMN
      ========================================================= */
 
-body.app-animals_metadata.model-animal.change-list #result_list th:nth-child(8),
+body.app-animals_metadata.model-animal.change-list #result_list th.column-sex,
+body.app-animals_metadata.model-animal.change-list #result_list td.column-sex {
+  width: 60px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — GENOTYPE COLUMN
+     ========================================================= */
+
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(8) {
-  width: 300px !important;
-  min-width: 300px !important;
+  th.column-genotype,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-genotype {
+  width: 150px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — DOB COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list #result_list th.column-dob,
+body.app-animals_metadata.model-animal.change-list #result_list td.column-dob {
+  width: 100px !important;
 }
 
 /* =========================================================
@@ -581,8 +729,7 @@ body.app-animals_metadata.model-animal.change-list
 body.app-animals_metadata.model-animal.change-list
   #result_list
   td.field-age_in_days {
-  width: 120px !important;
-  min-width: 120px !important;
+  width: 90px !important;
 }
 
 body.app-animals_metadata.model-animal.change-list
@@ -608,7 +755,7 @@ body.app-animals_metadata.model-animal.change-list
   #result_list
   td.field-age_in_days {
   text-align: left !important;
-  padding-left: 20px !important;
+  padding-left: 10px !important;
 }
 
 /* =========================================================
@@ -617,12 +764,63 @@ body.app-animals_metadata.model-animal.change-list
 
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  th:nth-child(11),
+  th.column-status,
 body.app-animals_metadata.model-animal.change-list
   #result_list
-  td:nth-child(11) {
-  width: 70px !important;
-  min-width: 70px !important;
+  td.column-sattus {
+  width: 80px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — PIPELINE STAGE COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-pipeline_stage,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-pipeline_stage {
+  width: 150px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — CAGE ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-cage_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-cage_id {
+  width: 130px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — OGR ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-ogr_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  td.column-ogr_id {
+  width: 130px !important;
+}
+
+/* =========================================================
+     ANIMALS TABLE — PROJECT ID COLUMN
+     ========================================================= */
+
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-project_id,
+body.app-animals_metadata.model-animal.change-list
+  #result_list
+  th.column-project_id {
+  width: 400px !important;
 }
 
 /* =========================================================
@@ -845,6 +1043,20 @@ body.app-animals_metadata.model-visioncheck.change-list
 }
 
 /* =========================================================
+     IMAGING SESSIONS — ANIMAL ID
+     ========================================================= */
+
+body.app-imaging_metadata.model-imagingsession.change-list
+  #result_list
+  th.column-animal,
+body.app-imaging_metadata.model-imagingsession.change-list
+  #result_list
+  td.field-animal {
+  /* padding-right: 20px !important; */
+  width: 90px !important;
+}
+
+/* =========================================================
      IMAGING SESSIONS — ACQUISITION DATE
      ========================================================= */
 
@@ -855,7 +1067,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-acquisition_date {
   padding-right: 20px !important;
-  width: 8% !important;
+  width: 120px !important;
 }
 
 /* =========================================================
@@ -868,8 +1080,8 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-imaging_region {
-  width: 8% !important;
-  /* min-width: 100px !important; */
+  width: 100px !important;
+  white-space: normal !important;
 }
 
 body.app-imaging_metadata.model-imagingsession.change-list
@@ -889,8 +1101,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-measurement_unit_ranges {
-  width: 15% !important;
-  /* min-width: 100px !important; */
+  width: 150px !important;
 
   white-space: normal !important;
 
@@ -918,8 +1129,7 @@ body.app-imaging_metadata.model-imagingsession.change-list
 body.app-imaging_metadata.model-imagingsession.change-list
   #result_list
   td.field-display_mesc_file_path {
-  width: 60% !important;
-  min-width: 300px !important;
+  width: 800px !important;
 
   white-space: normal !important;
 
@@ -1083,27 +1293,54 @@ body.app-training_metadata.model-trainingsession.change-list
      MICE BODY WEIGHT RECORDS TABLE — MAIN LIST
      ========================================================= */
 
+/* Animal ID*/
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_animal_id,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.field-get_animal_id {
-  width: 140px !important;
-  min-width: 120px !important;
-  max-width: 180px !important;
-  font-weight: 600 !important;
+  width: 10% !important;
 }
 
+/* Owner*/
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_owner,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.field-get_owner {
-  width: 120px !important;
-  min-width: 100px !important;
-  max-width: 160px !important;
+  width: 10% !important;
+}
+
+/* Water_restriction_start_date*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-water_restriction_start_date,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-water_restriction_start_date {
+  width: 20% !important;
+}
+
+/* % Body Wt. From Start*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-get_latest_percent_body_weight,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-get_latest_percent_body_weight {
+  width: 100px !important;
+}
+
+/* Last training day*/
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-get_latest_training_date,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-get_latest_training_date {
+  width: 100px !important;
 }
 
 /* =========================================================
@@ -1564,4 +1801,1047 @@ body.model-trackchanges.change-list #result_list td:last-child {
 #pstim-copy-toast.show {
   opacity: 1;
   transform: translate(-50%, -50%) translateY(0);
+}
+
+/* =========================================================
+/* =========================================================
+   DASHBOARD 2-COLUMN LAYOUT (MAIN CARDS + RIGHT SIDEBAR)
+   ========================================================= */
+
+body.dashboard #content,
+body.dashboard #content.colMS,
+body.dashboard #content.colM {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 24px !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body.dashboard #content-main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  float: none !important;
+  margin: 0 !important;
+}
+
+body.dashboard #content-related {
+  flex: 0 0 380px !important;
+  width: 380px !important;
+  max-width: 440px !important;
+  float: none !important;
+  margin: 0 !important;
+  margin-right: 0 !important;
+  margin-top: 0 !important;
+  position: sticky !important;
+  top: 16px !important;
+}
+
+.pstim-dashboard-sidebar .module {
+  background: var(--darkened-bg, #181f2a) !important;
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: 12px !important;
+  padding: 18px 20px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  box-sizing: border-box !important;
+}
+
+.pstim-dashboard-sidebar h2 {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--body-fg, #f8fafc) !important;
+  margin: 0 0 12px 0 !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08)) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.pstim-dashboard-sidebar h3 {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin: 0 0 10px 0 !important;
+}
+
+.pstim-dashboard-sidebar .actionlist {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.pstim-dashboard-sidebar .actionlist li {
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease !important;
+}
+
+.pstim-dashboard-sidebar .actionlist li:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.pstim-dashboard-sidebar .actionlist a {
+  color: #60a5fa !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.pstim-dashboard-sidebar .actionlist a:hover {
+  text-decoration: underline !important;
+}
+
+.pstim-dashboard-sidebar .action-time {
+  display: block !important;
+  font-size: 11px !important;
+  color: #64748b !important;
+  margin-bottom: 2px !important;
+}
+
+.pstim-dashboard-sidebar .action-change-summary {
+  font-size: 11.5px !important;
+  color: #bd7575 !important;
+  margin-top: 4px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+}
+
+.pstim-dashboard-main {
+  padding-bottom: 20px;
+}
+
+.pstim-dashboard-section {
+  margin-bottom: 28px;
+}
+
+.pstim-dashboard-section-header {
+  margin-bottom: 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+}
+
+.pstim-dashboard-section-title {
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  color: var(--body-fg, #f8fafc) !important;
+  margin: 0 0 4px 0 !important;
+  letter-spacing: -0.2px;
+}
+
+/* static/admin/css/pstim_admin_theme.css (around Line 1944) */
+.pstim-dashboard-section-subtitle {
+  font-size: 15px; /* <--- Adjust size (e.g. 11px, 12px, 14px, 15px) */
+  line-height: 1.5; /* <--- Line spacing (helpful when using <br>) */
+  color: #b8bbbb; /* Muted gray text color */
+  display: inline-block; /* Ensures line-height and spacing render cleanly */
+}
+
+.pstim-dashboard-section-subtitle b {
+  color: #050505; /* Light blue accent for the acronym letters */
+  font-weight: 700;
+}
+
+/* Identical Sized Grid */
+.pstim-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+/* Restrict single card (Auth) from over-expanding */
+.pstim-card-auth {
+  max-width: 320px;
+}
+
+/* Rounded Square Card (Matching Reference Design) */
+.pstim-dashboard-card {
+  background: var(--darkened-bg, #181f2a);
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition:
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.pstim-dashboard-card:hover {
+  border-color: rgba(96, 165, 250, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Card Header (Category Title) */
+.pstim-card-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.06));
+}
+
+.pstim-card-app-title {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+.pstim-card-app-title:hover {
+  color: #60a5fa !important;
+}
+
+/* Card Body & Model List */
+.pstim-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pstim-card-model-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pstim-card-model-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pstim-card-model-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pstim-card-model-name {
+  color: #f1f5f9 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  line-height: 1.3;
+}
+
+.pstim-card-model-name:hover {
+  color: #60a5fa !important;
+}
+
+.pstim-card-model-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pstim-card-add-btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #60a5fa !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  text-decoration: none !important;
+  border: 1px solid rgba(96, 165, 250, 0.25) !important;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pstim-card-add-btn:hover {
+  background: #60a5fa !important;
+  color: #0f172a !important;
+  border-color: #60a5fa !important;
+}
+
+/* =========================================================
+   MOUSE TRACKER & LABORATORY DASHBOARD WORKSTATION
+   ========================================================= */
+
+.pstim-tracker-container {
+  width: 100% !important;
+  max-width: 1450px !important;
+  margin: 0 auto !important;
+  padding-bottom: 40px;
+}
+
+/* View Switcher Tabs */
+.pstim-tracker-nav {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+  padding-bottom: 12px;
+}
+
+.pstim-tracker-tab {
+  background: var(--darkened-bg, #181f2a);
+  color: #94a3b8;
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pstim-tracker-tab:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.pstim-tracker-tab.active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+  font-weight: 700;
+}
+
+/* Workstation Card */
+.pstim-tracker-card {
+  background: var(--darkened-bg, #181f2a);
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.pstim-tracker-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.06));
+}
+
+.pstim-tracker-card-title {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--body-fg, #f8fafc) !important;
+  margin: 0 !important;
+  letter-spacing: -0.2px;
+}
+
+.pstim-tracker-card-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+.pstim-tracker-date-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Stats Grid */
+.pstim-tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.pstim-tracker-grid.quick-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.pstim-stat-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1px 1px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center; /* Keeps label at the top and value at the bottom */
+  align-items: center;
+  gap: 30px;
+  height: 50px; /* Forces all 4 boxes to be identical in height */
+  box-sizing: border-box;
+}
+
+.pstim-stat-label {
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.pstim-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center; /* Centers the % pill and numbers on the exact same line */
+  min-height: 30px;
+}
+
+.pstim-stat-value.good {
+  color: #ffffff;
+}
+.pstim-stat-value.warn {
+  color: #facc15;
+}
+.pstim-stat-value.bad {
+  color: #f87171;
+}
+.pstim-stat-value.small-text {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+}
+
+/* 2-Column Dashboard */
+.pstim-dashboard-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 960px) {
+  .pstim-dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Alert Banner */
+.pstim-alert-banner {
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.pstim-alert-banner.warn {
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  color: #facc15;
+}
+
+.pstim-alert-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.pstim-alert-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pstim-animal-pill-btn {
+  background: rgba(250, 204, 21, 0.15);
+  color: #fef08a;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pstim-animal-pill-btn:hover {
+  background: #facc15;
+  color: #0f172a;
+}
+
+/* Tables */
+.pstim-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pstim-tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.pstim-tracker-table th,
+.pstim-tracker-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: left;
+}
+
+.pstim-tracker-table th {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pstim-tracker-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pstim-animal-inline-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pstim-code-link {
+  background: transparent;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pstim-code-link:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+/* Pills */
+.pstim-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pstim-pill.good {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+.pstim-pill.warn {
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+}
+.pstim-pill.bad {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+.pstim-pill.accent {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.pstim-pill.muted {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Stat Box Metric Specific Pill (% Baseline) */
+.pstim-stat-value .pstim-pill {
+  font-size: 20px;
+  padding: 2px 10px;
+}
+
+.pstim-stage-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(96, 165, 250, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.pstim-stage-pill.stage-vision-check {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.pstim-stage-pill.stage-behavior-training {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.3);
+}
+.pstim-stage-pill.stage-surgery {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.pstim-stage-pill.stage-finished {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+.pstim-stage-pill.stage-virus-injection {
+  background: rgba(167, 139, 250, 0.12);
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+/* Profile View Styles - Single Level Top Bar */
+.pstim-profile-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 14px;
+}
+
+.pstim-profile-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pstim-profile-selector-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.pstim-select {
+  background: #090d13;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  width: 190px;
+  height: 36px;
+}
+
+.pstim-demographics-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+  padding: 0 10px;
+}
+
+.pstim-mouse-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pstim-mouse-code {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+}
+
+.pstim-mouse-subtext {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.pstim-profile-actions {
+  flex-shrink: 0;
+}
+
+.pstim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pstim-btn.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pstim-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #60a5fa;
+}
+
+/* Sub-Navigation Buttons */
+.pstim-profile-subnav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.pstim-subnav-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pstim-subnav-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pstim-subnav-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+  font-weight: 700;
+}
+
+/* Canvas & Details */
+.pstim-canvas-wrapper {
+  background: #090d13;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.pstim-section-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+  margin: 0 0 12px 0 !important;
+}
+
+.pstim-info-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pstim-record-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.pstim-record-header {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.pstim-record-sub {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.pstim-record-list {
+  margin: 6px 0 0 18px;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 12.5px;
+}
+
+.pstim-code {
+  background: #090d13;
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+/* Timeline */
+.pstim-timeline-list {
+  position: relative;
+  margin-left: 12px;
+  padding-left: 18px;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.pstim-timeline-item {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.pstim-timeline-dot {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #181f2a;
+}
+
+.pstim-timeline-dot.virus {
+  background: #a78bfa;
+}
+.pstim-timeline-dot.surgery {
+  background: #f87171;
+}
+.pstim-timeline-dot.imaging {
+  background: #60a5fa;
+}
+.pstim-timeline-dot.training {
+  background: #fbbf24;
+}
+.pstim-timeline-dot.water {
+  background: #facc15;
+}
+.pstim-timeline-dot.weight {
+  background: #4ade80;
+}
+
+.pstim-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #f8fafc;
+}
+
+.pstim-timeline-time {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pstim-timeline-msg {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.pstim-timeline-user {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.pstim-empty-state {
+  color: #64748b;
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+}
+
+.pstim-empty-cell {
+  color: #64748b;
+  text-align: center;
+  padding: 20px !important;
+}
+
+/* Overview Subtab Layout & Side-by-Side Charts */
+.pstim-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 960px) {
+  .pstim-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pstim-overview-card {
+  background: #151b23;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 330px;
+  box-sizing: border-box;
+}
+
+.pstim-chart-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pstim-chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+
+.pstim-chart-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+}
+
+.pstim-canvas-container {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  width: 100%;
+}
+
+.pstim-canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.pstim-chart-empty {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.pstim-chart-tooltip {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  transform: translate(-50%, -120%);
+  white-space: nowrap;
+}
+
+/* Reserved / Placeholder Card Styling */
+.pstim-overview-placeholder {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(21, 27, 35, 0.4);
+}
+
+.pstim-placeholder-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pstim-placeholder-content {
+  text-align: center;
+  max-width: 320px;
+  padding: 24px 16px;
+  margin: auto;
+}
+
+.pstim-placeholder-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+  opacity: 0.85;
+}
+
+.pstim-placeholder-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+.pstim-placeholder-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.hidden {
+  display: none !important;
 }

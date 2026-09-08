@@ -21,8 +21,13 @@ from django.urls import path
 
 # Disable the "VIEW SITE" link in Django Admin
 admin.site.site_url = None
+admin.site.index_title = ""
+
+from animals_metadata.views import mouse_tracker_view
 
 urlpatterns = [
+    path('admin/tracker/', mouse_tracker_view, name='mouse_tracker'),
+    path('admin/mouse-tracker/', mouse_tracker_view, name='mouse_tracker_alias'),
     path('admin/', admin.site.urls),
 ]
 

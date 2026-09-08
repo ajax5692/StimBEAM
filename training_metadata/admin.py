@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from django import forms
 from django.contrib import admin, messages
 from django.db import models
@@ -13,6 +14,7 @@ from animals_metadata.utils import (
     get_user_initials,
     render_copyable_path_widget,
 )
+
 from .models import BodyWeightEntry, MouseBodyWeight, TrackChanges, TrainingSession
 from .services import execute_training_analysis
 
@@ -193,6 +195,7 @@ class BodyWeightEntryInline(admin.TabularInline):
         "date",
         "body_weight_g",
         "display_percent_body_weight",
+        "is_training_done",
         "notes",
     )
     readonly_fields = (
@@ -220,6 +223,9 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
     list_display = (
         "get_animal_id",
         "get_owner",
+        "water_restriction_start_date",
+        "get_latest_percent_body_weight",
+        "get_latest_training_date",
     )
 
     list_filter = (
@@ -242,6 +248,7 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
                 "fields": (
                     "animal",
                     "get_owner_display",
+                    "water_restriction_start_date",
                 ),
             },
         ),
@@ -269,6 +276,34 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
         if obj and obj.animal:
             owner_label = obj.animal.get_owner_display() if hasattr(obj.animal, "get_owner_display") else obj.animal.owner
             return f"{owner_label} ({obj.animal.owner})"
+        return "-"
+    
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("entries")
+    
+    @admin.display(description="% Body Wt. From Start")
+    def get_latest_percent_body_weight(self, obj):
+        latest_entry = obj.entries.order_by("-date", "-id").first()
+        if latest_entry and latest_entry.percent_body_weight is not None:
+            pct = latest_entry.percent_body_weight
+            # Optional: highlight in red/warning if weight falls below the 80% safety limit
+            color = "#ff4d4f" if pct < 80.0 else "#4ade80"  # red if below 80%, green otherwise
+            formatted_pct = f"{pct:.1f} %"
+            return format_html(
+                '<span style="color: {}; font-weight: 600;">{}</span>',
+                color,
+                formatted_pct,
+            )
+        return "-"
+    
+    @admin.display(description="Last training day")
+    def get_latest_training_date(self, obj):
+        latest_entry = obj.entries.order_by("-date", "-id").first()
+        if latest_entry and latest_entry.is_training_done is not None:
+            for entry in obj.entries.order_by("-date", "-id"):
+                if entry.is_training_done == 'Y':
+                    return entry.date           
         return "-"
 
     def save_related(self, request, form, formsets, change):

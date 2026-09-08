@@ -2,7 +2,9 @@
 
 {% block branding %}
 <div id="site-name">
-  <a href="{% url 'admin:index' %}"> PhotoStim Data Administration </a>
+  <a href="{% url 'mouse_tracker' %}"> <b>StimBEAM</b> </a>
+  <span class="pstim-dashboard-section-subtitle"><br><b>Stim</b>ulation, <b>B</b>ehavioral
+   and <b>E</b>nsemble <b>A</b>ctivity <b>M</b>apping</span>
 </div>
 {% endblock %}
 
@@ -24,82 +26,115 @@
 {% block nav-global %}
 <div class="pstim-top-nav">
   <div class="pstim-top-nav-inner">
-    {% if installed_apps.animals_metadata %}
+
+    <!-- Top Level: MOUSE TRACKER -->
     <div class="pstim-nav-item">
-      <a href="/admin/animals_metadata/">
-        ANIMALS METADATA
+      <a href="/admin/tracker/">
+        🐭 MOUSE TRACKER
+        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
+      </a>
+      <div class="pstim-dropdown">
+        <a href="/admin/tracker/?view=dashboard"> 📊 Laboratory Dashboard </a>
+        <a href="/admin/tracker/?view=profile"> 🔍 Mouse Profile Workstation </a>
+      </div>
+    </div>
+
+    <!-- Top Level: EXPERIMENTAL METADATA -->
+    <div class="pstim-nav-item">
+      <a href="/admin/">
+        🔬 EXPERIMENTAL METADATA
         <span class="pstim-nav-caret" aria-hidden="true">▼</span>
       </a>
 
+      <!-- First Level Dropdown: List of Apps -->
       <div class="pstim-dropdown">
-        <a href="/admin/animals_metadata/animal/"> Animals </a>
-        <a href="/admin/animals_metadata/visioncheck/"> Vision Checks </a>
-        <a href="/admin/animals_metadata/viralinjection/"> Viral Injections </a>
-        <a href="/admin/animals_metadata/trackchanges/"> Track Changes </a>
+
+        <!-- ANIMALS -->
+        {% if installed_apps.animals_metadata %}
+        <div class="pstim-dropdown-submenu">
+          <a href="/admin/animals_metadata/" class="pstim-submenu-trigger">
+            Animals Metadata
+            <span class="pstim-submenu-caret">▶</span>
+          </a>
+          <!-- Second Level Flyout: Animals Models -->
+          <div class="pstim-submenu-dropdown">
+            <a href="/admin/animals_metadata/animal/"> Animals </a>
+            <a href="/admin/animals_metadata/visioncheck/"> Vision Checks </a>
+            <a href="/admin/animals_metadata/viralinjection/"> Viral Injections </a>
+            <a href="/admin/animals_metadata/trackchanges/"> Track Changes </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- IMAGING -->
+        {% if installed_apps.imaging_metadata %}
+        <div class="pstim-dropdown-submenu">
+          <a href="/admin/imaging_metadata/" class="pstim-submenu-trigger">
+            Imaging Metadata
+            <span class="pstim-submenu-caret">▶</span>
+          </a>
+          <!-- Second Level Flyout: Imaging Models -->
+          <div class="pstim-submenu-dropdown">
+            <a href="/admin/imaging_metadata/imagingsession/"> Imaging Sessions </a>
+            <a href="/admin/imaging_metadata/trackchanges/"> Track Changes </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- IMAGING ANALYSIS -->
+        {% if installed_apps.imaging_analysis_metadata %}
+        <div class="pstim-dropdown-submenu">
+          <a href="/admin/imaging_analysis_metadata/" class="pstim-submenu-trigger">
+            Imaging Analysis Metadata
+            <span class="pstim-submenu-caret">▶</span>
+          </a>
+          <!-- Second Level Flyout: Analysis Models -->
+          <div class="pstim-submenu-dropdown">
+            <a href="/admin/imaging_analysis_metadata/analysisrun/"> Analysis Runs </a>
+            <a href="/admin/imaging_analysis_metadata/trackchanges/"> Track Changes </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- TRAINING -->
+        {% if installed_apps.training_metadata %}
+        <div class="pstim-dropdown-submenu">
+          <a href="/admin/training_metadata/" class="pstim-submenu-trigger">
+            Training Metadata
+            <span class="pstim-submenu-caret">▶</span>
+          </a>
+          <!-- Second Level Flyout: Training Models -->
+          <div class="pstim-submenu-dropdown">
+            <a href="/admin/training_metadata/trainingsession/"> Training Sessions </a>
+            <a href="/admin/training_metadata/mousebodyweight/"> Mice Body Weight Records </a>
+            <a href="/admin/training_metadata/trackchanges/"> Track Changes </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- VIRUSES -->
+        {% if installed_apps.virus_metadata %}
+        <div class="pstim-dropdown-submenu">
+          <a href="/admin/virus_metadata/" class="pstim-submenu-trigger">
+            Virus Metadata
+            <span class="pstim-submenu-caret">▶</span>
+          </a>
+          <!-- Second Level Flyout: Virus Models -->
+          <div class="pstim-submenu-dropdown">
+            <a href="/admin/virus_metadata/virus/"> Viruses </a>
+            <a href="/admin/virus_metadata/trackchanges/"> Track Changes </a>
+          </div>
+        </div>
+        {% endif %}
+
       </div>
     </div>
-    {% endif %}
 
-    {% if installed_apps.imaging_metadata %}
-    <div class="pstim-nav-item">
-      <a href="/admin/imaging_metadata/">
-        IMAGING METADATA
-        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
-      </a>
-
-      <div class="pstim-dropdown">
-        <a href="/admin/imaging_metadata/imagingsession/"> Imaging Sessions </a>
-        <a href="/admin/imaging_metadata/trackchanges/"> Track Changes </a>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if installed_apps.imaging_analysis_metadata %}
-    <div class="pstim-nav-item">
-      <a href="/admin/imaging_analysis_metadata/">
-        IMAGING ANALYSIS METADATA
-        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
-      </a>
-
-      <div class="pstim-dropdown">
-        <a href="/admin/imaging_analysis_metadata/analysisrun/"> Analysis Runs </a>
-        <a href="/admin/imaging_analysis_metadata/trackchanges/"> Track Changes </a>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if installed_apps.training_metadata %}
-    <div class="pstim-nav-item">
-      <a href="/admin/training_metadata/">
-        TRAINING METADATA
-        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
-      </a>
-
-      <div class="pstim-dropdown">
-        <a href="/admin/training_metadata/trainingsession/"> Training Sessions </a>
-        <a href="/admin/training_metadata/mousebodyweight/"> Mice Body Weight Records </a>
-        <a href="/admin/training_metadata/trackchanges/"> Track Changes </a>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if installed_apps.virus_metadata %}
-    <div class="pstim-nav-item">
-      <a href="/admin/virus_metadata/">
-        VIRUS METADATA
-        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
-      </a>
-
-      <div class="pstim-dropdown">
-        <a href="/admin/virus_metadata/virus/"> Viruses </a>
-        <a href="/admin/virus_metadata/trackchanges/"> Track Changes </a>
-      </div>
-    </div>
-    {% endif %}
-
+    <!-- Auth link -->
     {% if installed_apps.django_contrib_auth %}
-    <a href="/admin/auth/"> AUTHENTICATION AND AUTHORIZATION </a>
+      <a href="/admin/auth/"> AUTHENTICATION AND AUTHORIZATION </a>
     {% endif %}
+
   </div>
 </div>
 {% endblock %}

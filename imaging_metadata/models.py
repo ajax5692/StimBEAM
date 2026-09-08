@@ -1,6 +1,7 @@
 from django.db import models
 from simple_history.models import HistoricalRecords
 
+from animals_metadata.utils import validate_non_overlapping_session_units
 from .validators import validate_measurement_unit_ranges
 
 
@@ -34,6 +35,48 @@ class ImagingSession(models.Model):
         blank=True,
         null=True,
     )
+    
+    class NeedForAnalysisChoices(models.TextChoices):
+        YES = 'Y', 'Yes'
+        NO  = 'N', 'No'
+        
+    need_for_analysis = models.TextField(
+        blank=True,
+        null=True,
+        choices=NeedForAnalysisChoices.choices,
+        verbose_name="Required for Analysis?"
+    )
+    
+    class AnalysisPerformedChoices(models.TextChoices):
+        YES = 'Y', 'Yes'
+        NO  = 'N', 'No'
+        
+    analysis_performed = models.TextField(
+        blank=True,
+        null=True,
+        choices=AnalysisPerformedChoices.choices,
+        verbose_name="Analysis Performed?"
+    )
+
+    def clean(self):
+        super().clean()
+        if hasattr(self, "animal_id") and self.animal_id and self.acquisition_date and self.measurement_unit_ranges:
+            validate_non_overlapping_session_units(
+                model_class=ImagingSession,
+                animal=self.animal,
+                session_date=self.acquisition_date,
+                unit_range_str=self.measurement_unit_ranges,
+                date_field_name="acquisition_date",
+                unit_field_name="measurement_unit_ranges",
+                exclude_pk=self.pk,
+                model_name="imaging session",
+            )
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "acquisition_date", "measurement_unit_ranges")):
+            self.clean()
+        super().save(*args, **kwargs)
 
     history = HistoricalRecords()
 

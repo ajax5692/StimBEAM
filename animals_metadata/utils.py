@@ -450,4 +450,62 @@ def validate_measurement_unit_ranges(value: Any) -> None:
                 raise ValidationError(f"Invalid unit '{part}'. Unit numbers must be integers.")
 
 
+def validate_non_overlapping_session_units(
+    model_class: Any,
+    animal: Any,
+    session_date: Any,
+    unit_range_str: Any,
+    date_field_name: str = "acquisition_date",
+    unit_field_name: str = "measurement_unit_ranges",
+    exclude_pk: Optional[Any] = None,
+    model_name: str = "session",
+) -> None:
+    """
+    Failsafe validator preventing duplicate or overlapping unit range measurements
+    for the same animal on the same date.
+    """
+    if not animal or not session_date or not unit_range_str:
+        return
+
+    current_units = parse_unit_ranges(unit_range_str)
+
+    filter_kwargs = {
+        "animal": animal,
+        date_field_name: session_date,
+    }
+    existing_sessions = model_class.objects.filter(**filter_kwargs)
+    if exclude_pk is not None:
+        existing_sessions = existing_sessions.exclude(pk=exclude_pk)
+
+    for other in existing_sessions:
+        other_range_str = getattr(other, unit_field_name, None)
+        other_units = parse_unit_ranges(other_range_str)
+
+        # If either covers all units (None) or units overlap
+        if current_units is None or other_units is None:
+            raise ValidationError({
+                unit_field_name: (
+                    f"A {model_name} for animal '{animal}' on {session_date} already exists "
+                    f"(Record #{other.pk} with units '{other_range_str}'). "
+                    f"Duplicate measurements on the same animal and date are not allowed."
+                )
+            })
+
+        overlap = set(current_units) & set(other_units)
+        if overlap:
+            overlap_sorted = sorted(list(overlap))
+            if len(overlap_sorted) > 10:
+                overlap_display = f"{overlap_sorted[:10]}... ({len(overlap_sorted)} units)"
+            else:
+                overlap_display = str(overlap_sorted)
+
+            raise ValidationError({
+                unit_field_name: (
+                    f"A {model_name} for animal '{animal}' on {session_date} already exists "
+                    f"covering unit number(s) {overlap_display} (Record #{other.pk} with units '{other_range_str}'). "
+                    f"Please specify non-overlapping unit numbers to analyze."
+                )
+            })
+
+
 

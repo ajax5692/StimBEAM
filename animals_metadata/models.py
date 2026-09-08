@@ -22,6 +22,16 @@ class Animal(models.Model):
         ALIVE = 'Alive', 'Alive'
         DEAD  = 'Dead', 'Dead'
         
+    class PipelineStageChoices(models.TextChoices):
+        INTAKE = 'Intake', 'Intake'
+        VISION_CHECK = 'Vision Check', 'Vision Check'
+        VIRUS_INJECTION = 'Virus Injection', 'Virus Injection'
+        SURGERY = 'Surgery', 'Surgery'
+        BEHAVIOR_TRAINING = 'Behavior Training', 'Behavior Training'
+        FINISHED = 'Finished', 'Finished'
+        CULLED = 'Culled', 'Culled'
+
+
     animal_id = models.CharField(max_length=10,unique=True,verbose_name="Animal ID")
     owner = models.CharField(max_length=100,choices=OwnerChoices.choices, null=True, blank=True)
     sex = models.CharField(max_length=100,choices=SexChoices.choices)
@@ -29,6 +39,8 @@ class Animal(models.Model):
     cage_id = models.CharField(max_length=100, null=True, blank=True,verbose_name="Cage ID")
     ogr_id = models.CharField(max_length=100, null=True, blank=True,verbose_name="OGR ID")
     project_id = models.CharField(max_length=100, null=True, blank=True,verbose_name="Project ID")
+    status = models.CharField(max_length=100,choices=StatusChoices.choices, null=True, blank=True)
+    pipeline_stage = models.CharField(max_length=100,choices=PipelineStageChoices.choices, null=True, blank=True)
     
     dob = models.DateField(verbose_name="Date of Birth")
     @property
@@ -38,7 +50,6 @@ class Animal(models.Model):
         today = timezone.now().date()
         return (today - self.dob).days
     
-    status = models.CharField(max_length=100,choices=StatusChoices.choices, null=True, blank=True)
     history = HistoricalRecords()
     
     class Meta:

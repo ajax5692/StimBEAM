@@ -81,4 +81,148 @@ class AnimalsMetadataTrackChangesTest(TestCase):
         self.assertContains(res, "ANIMALS METADATA")
         self.assertContains(res, "VIRUS METADATA")
 
+    def test_mouse_tracker_water_restricted_count(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+        from training_metadata.models import MouseBodyWeight
+
+        # Clean existing animals
+        Animal.objects.all().delete()
+
+        # 1. Create inactive / finished / culled / dead animals with water restriction logged
+        dead_animal = Animal.objects.create(
+            animal_id="DEAD01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.DEAD,
+            pipeline_stage=Animal.PipelineStageChoices.FINISHED,
+        )
+        MouseBodyWeight.objects.create(
+            animal=dead_animal,
+            water_restriction_start_date=timezone.now().date(),
+        )
+
+        culled_animal = Animal.objects.create(
+            animal_id="CULL01",
+            sex="F",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.CULLED,
+        )
+        MouseBodyWeight.objects.create(
+            animal=culled_animal,
+            water_restriction_start_date=timezone.now().date(),
+        )
+
+        User = get_user_model()
+        user, _ = User.objects.get_or_create(username="adminuser2", defaults={"is_superuser": True, "is_staff": True})
+        client = Client(SERVER_NAME="localhost")
+        client.force_login(user)
+
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.status_code, 200)
+        # When active_mice is 0, water_restricted must be 0
+        self.assertEqual(res.context["active_mice"], 0)
+        self.assertEqual(res.context["water_restricted_mice"], 0)
+
+        # 2. Add an active animal in Surgery (not in training)
+        surg_animal = Animal.objects.create(
+            animal_id="SURG01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.SURGERY,
+        )
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.context["active_mice"], 1)
+        self.assertEqual(res.context["water_restricted_mice"], 0)
+
+        # 3. Add an active animal in Behavior Training
+        train_animal = Animal.objects.create(
+            animal_id="TRAIN01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.BEHAVIOR_TRAINING,
+        )
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.context["active_mice"], 2)
+        self.assertEqual(res.context["water_restricted_mice"], 1)
+
+
+class MouseTrackerServiceTest(TestCase):
+    def setUp(self):
+        self.today = timezone.now().date()
+        self.animal = Animal.objects.create(
+            animal_id="SERV01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=self.today,
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.BEHAVIOR_TRAINING,
+        )
+
+    def test_pipeline_distribution_calculation(self):
+        from animals_metadata.services import MouseTrackerService
+
+        sample_data = [
+            {"animal_id": "M01", "pipeline_stage": "Intake", "status": "Alive"},
+            {"animal_id": "M02", "pipeline_stage": "Vision Check", "status": "Alive"},
+            {"animal_id": "M03", "pipeline_stage": "Behavior Training", "status": "Alive"},
+            {"animal_id": "M04", "pipeline_stage": "Culled", "status": "Culled"},
+        ]
+
+        dist = MouseTrackerService.compute_pipeline_distribution(sample_data)
+        self.assertEqual(len(dist), len(MouseTrackerService.PIPELINE_STAGES))
+
+        dist_dict = {d["stage"]: d for d in dist}
+        self.assertEqual(dist_dict["Intake"]["count"], 1)
+        self.assertEqual(dist_dict["Intake"]["animals"], ["M01"])
+        self.assertEqual(dist_dict["Vision Check"]["count"], 1)
+        self.assertEqual(dist_dict["Vision Check"]["animals"], ["M02"])
+        self.assertEqual(dist_dict["Behavior Training"]["count"], 1)
+        self.assertEqual(dist_dict["Behavior Training"]["animals"], ["M03"])
+        self.assertEqual(dist_dict["Culled"]["count"], 1)
+        self.assertEqual(dist_dict["Culled"]["animals"], ["M04"])
+        self.assertEqual(dist_dict["Surgery"]["count"], 0)
+
+    def test_water_restriction_string_formatting(self):
+        from datetime import timedelta
+        from animals_metadata.services import MouseTrackerService
+
+        # Active & started 5 days ago
+        start_date = self.today - timedelta(days=4)
+        s = MouseTrackerService.calculate_restriction_string(True, start_date, self.today)
+        self.assertEqual(s, f"Day 5 (Since {start_date})")
+
+        # Active & no date set
+        s_nodate = MouseTrackerService.calculate_restriction_string(True, None, self.today)
+        self.assertEqual(s_nodate, "Active Training (Date not set)")
+
+        # Inactive & prior start date
+        s_inactive = MouseTrackerService.calculate_restriction_string(False, start_date, self.today)
+        self.assertEqual(s_inactive, f"Not on restriction (Prior start: {start_date})")
+
+        # Inactive & no start date
+        s_none = MouseTrackerService.calculate_restriction_string(False, None, self.today)
+        self.assertEqual(s_none, "Not on restriction")
+
+    def test_tracker_dashboard_context_generation(self):
+        from animals_metadata.services import MouseTrackerService
+
+        context = MouseTrackerService.get_tracker_dashboard_context(today=self.today)
+        self.assertIn("animals_data", context)
+        self.assertIn("animals_json", context)
+        self.assertIn("pipeline_distribution", context)
+        self.assertIn("recent_activity", context)
+        self.assertEqual(context["total_mice"], 1)
+        self.assertEqual(context["active_mice"], 1)
+        self.assertEqual(context["water_restricted_mice"], 1)
+
+
+
 
