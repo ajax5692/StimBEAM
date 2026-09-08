@@ -27,8 +27,17 @@
 <div class="pstim-top-nav">
   <div class="pstim-top-nav-inner">
 
-    <!-- Mouse Tracker / Dashboard link -->
-    <a href="/admin/tracker/"> 🐭 MOUSE TRACKER </a>
+    <!-- Top Level: MOUSE TRACKER -->
+    <div class="pstim-nav-item">
+      <a href="/admin/tracker/">
+        🐭 MOUSE TRACKER
+        <span class="pstim-nav-caret" aria-hidden="true">▼</span>
+      </a>
+      <div class="pstim-dropdown">
+        <a href="/admin/tracker/?view=dashboard"> 📊 Laboratory Dashboard </a>
+        <a href="/admin/tracker/?view=profile"> 🔍 Mouse Profile Workstation </a>
+      </div>
+    </div>
 
     <!-- Top Level: EXPERIMENTAL METADATA -->
     <div class="pstim-nav-item">

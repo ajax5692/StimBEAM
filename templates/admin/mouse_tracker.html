@@ -223,11 +223,46 @@
         
         <!-- SUBTAB 1: OVERVIEW -->
         <div id="subtab-overview" class="pstim-subtab-panel">
-          <div class="pstim-card-inner">
-            <h3 class="pstim-section-title">Longitudinal Body Weight Trajectory</h3>
-            <div class="pstim-canvas-wrapper">
-              <canvas id="canvas-overview-weight" height="240"></canvas>
+          <div class="pstim-overview-grid">
+            
+            <!-- Left Graph: Body Weight Progression -->
+            <div class="pstim-overview-card">
+              <div class="pstim-chart-header">
+                <div class="pstim-chart-title">
+                  <span>⚖️ Body Weight Progression</span>
+                </div>
+                <div class="pstim-chart-badges" id="overview-weight-badges"></div>
+              </div>
+              <div class="pstim-canvas-container" id="overview-weight-canvas-container">
+                <canvas id="canvas-overview-weight"></canvas>
+                <div id="overview-weight-empty" class="pstim-chart-empty" style="display: none;">
+                  <span>No body weight records recorded yet.</span>
+                </div>
+                <div id="overview-weight-tooltip" class="pstim-chart-tooltip"></div>
+              </div>
             </div>
+
+            <!-- Right Graph: Reserved Space for Future Analytics -->
+            <div class="pstim-overview-card pstim-overview-placeholder">
+              <div class="pstim-chart-header">
+                <div class="pstim-chart-title">
+                  <span>📊 Behavioral Performance & Analytics</span>
+                </div>
+                <div class="pstim-chart-badges">
+                  <span class="pstim-pill accent">Upcoming Feature</span>
+                </div>
+              </div>
+              <div class="pstim-canvas-container pstim-placeholder-container">
+                <div class="pstim-placeholder-content">
+                  <div class="pstim-placeholder-icon">📈</div>
+                  <div class="pstim-placeholder-title">Analytics Plot Reserved</div>
+                  <div class="pstim-placeholder-desc">
+                    Calculation modules and performance metrics are currently under development. This visualization slot is reserved for upcoming behavioral and trial response curves.
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -342,11 +377,38 @@
         sel.appendChild(opt);
       });
       currentAnimalId = ANIMALS_DATA[0].animal_id;
-      renderSelectedMouseProfile(currentAnimalId);
     } else {
       sel.innerHTML = '<option value="">No animals registered</option>';
     }
+
+    // Check URL query parameters or hash to activate requested view
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') || window.location.hash.replace('#', '');
+    const animalParam = params.get('animal');
+
+    if (animalParam && ANIMALS_DATA.some(a => a.animal_id === animalParam)) {
+      openMouseProfile(animalParam);
+    } else if (viewParam === 'profile') {
+      switchTrackerView('profile');
+    } else {
+      switchTrackerView('dashboard');
+    }
   }
+
+  window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') || window.location.hash.replace('#', '');
+    if (viewParam === 'profile' || viewParam === 'dashboard') {
+      switchTrackerView(viewParam);
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'profile' || hash === 'dashboard') {
+      switchTrackerView(hash);
+    }
+  });
 
   function switchTrackerView(viewName) {
     const dashView = document.getElementById('tracker-dashboard-view');
@@ -665,116 +727,290 @@
     }
   }
 
-  // Pure HTML5 Canvas Weight Chart
+  let overviewChartPoints = [];
+  let overviewTooltipAttached = false;
+
+  // Pure HTML5 Canvas Weight Chart (Body Weight Progression)
   function drawWeightCanvas(canvasId, a) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
+    const container = document.getElementById('overview-weight-canvas-container');
+    const emptyMsg = document.getElementById('overview-weight-empty');
+    const tooltip = document.getElementById('overview-weight-tooltip');
+    const badgesContainer = document.getElementById('overview-weight-badges');
 
-    canvas.width = rect.width * dpr;
-    canvas.height = 240 * dpr;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d');
+    overviewChartPoints = [];
+
+    // Parse and prepare weight data
+    const rawWeights = a.weights || [];
+    const data = [];
+    rawWeights.forEach(w => {
+      const val = parseFloat(w.weight_g);
+      if (w.date && !isNaN(val) && val > 0) {
+        data.push({
+          date: w.date,
+          weight: val,
+          pct: w.pct != null ? parseFloat(w.pct) : null
+        });
+      }
+    });
+
+    data.sort((x, y) => (x.date > y.date ? 1 : (x.date < y.date ? -1 : 0)));
+
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = rect.width || 400;
+    const height = 240;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    ctx.save();
     ctx.scale(dpr, dpr);
 
-    const w = rect.width;
-    const h = 240;
-
-    ctx.clearRect(0, 0, w, h);
-
-    const weights = a.weights || [];
-    if (weights.length === 0) {
-      ctx.fillStyle = '#64748b';
-      ctx.font = '13px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No weight measurement points available to chart.', w / 2, h / 2);
+    if (data.length === 0) {
+      ctx.clearRect(0, 0, width, height);
+      if (emptyMsg) emptyMsg.style.display = 'flex';
+      if (badgesContainer) badgesContainer.innerHTML = '';
+      if (tooltip) tooltip.style.display = 'none';
+      ctx.restore();
       return;
     }
 
-    const padding = { top: 30, right: 30, bottom: 40, left: 50 };
-    const chartW = w - padding.left - padding.right;
-    const chartH = h - padding.top - padding.bottom;
+    if (emptyMsg) emptyMsg.style.display = 'none';
 
-    const values = weights.map(x => Number(x.pct) || 100);
-    const minVal = Math.min(70, Math.floor(Math.min(...values) / 5) * 5);
-    const maxVal = Math.max(110, Math.ceil(Math.max(...values) / 5) * 5);
+    const startWeight = a.baseline_weight || data[0].weight;
+    const limit80 = startWeight * 0.8;
 
-    // Draw grid lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    // Update badges
+    if (badgesContainer) {
+      const latestEntry = data[data.length - 1];
+      const latestPct = startWeight > 0 ? (latestEntry.weight / startWeight) * 100 : 100;
+      const isBelowLimit = latestEntry.weight < limit80;
+
+      badgesContainer.innerHTML = `
+        <span class="mbw-badge start" title="Baseline start weight">
+          Start: <strong>${startWeight.toFixed(1)}g</strong> (100%)
+        </span>
+        <span class="mbw-badge latest ${isBelowLimit ? 'warning' : ''}" title="Most recent recorded weight">
+          Latest: <strong>${latestEntry.weight.toFixed(1)}g</strong> (${latestPct.toFixed(1)}%)
+        </span>
+        <span class="mbw-badge limit" title="80% threshold line (safety cutoff)">
+          80% Limit: <strong>${limit80.toFixed(1)}g</strong>
+        </span>
+      `;
+    }
+
+    const margin = {
+      top: 25,
+      right: 90,
+      bottom: 38,
+      left: 60,
+    };
+
+    const plotW = width - margin.left - margin.right;
+    const plotH = height - margin.top - margin.bottom;
+
+    let minW = Math.min(...data.map(d => d.weight), limit80);
+    let maxW = Math.max(...data.map(d => d.weight), startWeight);
+
+    const span = maxW - minW || 5;
+    minW = Math.floor(Math.max(0, minW - span * 0.15));
+    maxW = Math.ceil(maxW + span * 0.15);
+
+    function getY(val) {
+      return margin.top + plotH - ((val - minW) / (maxW - minW)) * plotH;
+    }
+
+    function getX(idx) {
+      if (data.length === 1) return margin.left + plotW / 2;
+      return margin.left + (idx / (data.length - 1)) * plotW;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Grid lines & Y-axis ticks
     ctx.lineWidth = 1;
-    ctx.font = '11px system-ui, sans-serif';
-    ctx.fillStyle = '#64748b';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fillStyle = 'rgba(200, 210, 220, 0.65)';
+    ctx.font = '10.5px Inter, system-ui, sans-serif';
     ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
 
-    const step = 10;
-    for (let v = minVal; v <= maxVal; v += step) {
-      const y = padding.top + chartH - ((v - minVal) / (maxVal - minVal)) * chartH;
+    const tickSteps = 4;
+    for (let i = 0; i <= tickSteps; i++) {
+      const val = minW + ((maxW - minW) / tickSteps) * i;
+      const y = getY(val);
+
       ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(w - padding.right, y);
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(margin.left + plotW, y);
       ctx.stroke();
-      ctx.fillText(`${v}%`, padding.left - 8, y + 4);
+
+      ctx.fillText(`${val.toFixed(1)}g`, margin.left - 8, y);
     }
 
-    // 100% Baseline Line
-    if (100 >= minVal && 100 <= maxVal) {
-      const y100 = padding.top + chartH - ((100 - minVal) / (maxVal - minVal)) * chartH;
-      ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y100);
-      ctx.lineTo(w - padding.right, y100);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // 80% Safety Line
-    if (80 >= minVal && 80 <= maxVal) {
-      const y80 = padding.top + chartH - ((80 - minVal) / (maxVal - minVal)) * chartH;
-      ctx.strokeStyle = 'rgba(248, 113, 113, 0.4)';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y80);
-      ctx.lineTo(w - padding.right, y80);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Plot Line
-    const pts = weights.map((pt, idx) => {
-      const x = weights.length === 1 ? padding.left + chartW / 2 : padding.left + (idx / (weights.length - 1)) * chartW;
-      const val = Number(pt.pct) || 100;
-      const y = padding.top + chartH - ((val - minVal) / (maxVal - minVal)) * chartH;
-      return { x, y, val, date: pt.date };
-    });
-
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    pts.forEach((p, idx) => {
-      if (idx === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.stroke();
-
-    // Plot Points
-    pts.forEach(p => {
-      ctx.fillStyle = p.val >= 85 ? '#4ade80' : (p.val >= 80 ? '#facc15' : '#f87171');
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    });
-
-    // X Axis Labels
-    ctx.fillStyle = '#64748b';
+    // Y Axis Rotated Label
+    ctx.save();
+    ctx.translate(14, margin.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    if (pts.length > 0) {
-      ctx.fillText(pts[0].date, pts[0].x, h - 12);
-      if (pts.length > 1) {
-        ctx.fillText(pts[pts.length - 1].date, pts[pts.length - 1].x, h - 12);
+    ctx.fillStyle = 'rgba(200, 210, 220, 0.5)';
+    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.fillText('Body Weight (g)', 0, 0);
+    ctx.restore();
+
+    // 80% Safety Limit Line (Red dashed)
+    const y80 = getY(limit80);
+    if (y80 >= margin.top - 5 && y80 <= margin.top + plotH + 5) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.moveTo(margin.left, y80);
+      ctx.lineTo(margin.left + plotW, y80);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`80% (${limit80.toFixed(1)}g)`, margin.left + plotW + 6, y80);
+      ctx.restore();
+    }
+
+    // Plot Line & Gradient Fill
+    if (data.length > 0) {
+      ctx.save();
+      const gradient = ctx.createLinearGradient(0, margin.top, 0, margin.top + plotH);
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
+      gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+      ctx.beginPath();
+      data.forEach((d, idx) => {
+        const x = getX(idx);
+        const y = getY(d.weight);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(getX(data.length - 1), margin.top + plotH);
+      ctx.lineTo(getX(0), margin.top + plotH);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.restore();
+
+      // Stroke line
+      ctx.save();
+      ctx.beginPath();
+      data.forEach((d, idx) => {
+        const x = getX(idx);
+        const y = getY(d.weight);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+
+      // Points & X Labels
+      data.forEach((d, idx) => {
+        const x = getX(idx);
+        const y = getY(d.weight);
+        const pct = startWeight > 0 ? (d.weight / startWeight) * 100 : 100;
+        const isWarning = d.weight < limit80;
+
+        overviewChartPoints.push({
+          x,
+          y,
+          date: d.date,
+          weight: d.weight,
+          pct: pct,
+          isWarning: isWarning,
+        });
+
+        // Draw dot
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = isWarning ? '#ef4444' : '#0284c7';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.restore();
+
+        // X-axis date label
+        ctx.save();
+        ctx.fillStyle = 'rgba(200, 210, 220, 0.75)';
+        ctx.font = '10px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const shortDate = d.date.length > 5 ? d.date.slice(5) : d.date;
+        ctx.fillText(shortDate, x, margin.top + plotH + 8);
+        ctx.restore();
+      });
+    }
+
+    ctx.restore();
+
+    // Attach hover listener once
+    if (!overviewTooltipAttached) {
+      overviewTooltipAttached = true;
+      canvas.addEventListener('mousemove', function (e) {
+        const cRect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - cRect.left;
+        const mouseY = e.clientY - cRect.top;
+
+        let nearest = null;
+        let minDist = 24;
+
+        overviewChartPoints.forEach(pt => {
+          const dist = Math.hypot(pt.x - mouseX, pt.y - mouseY);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = pt;
+          }
+        });
+
+        if (nearest && tooltip) {
+          tooltip.style.display = 'block';
+          tooltip.style.left = nearest.x + 'px';
+          tooltip.style.top = nearest.y + 'px';
+
+          const statusColor = nearest.isWarning ? '#ef4444' : '#4ade80';
+          tooltip.innerHTML = `
+            <div style="font-weight:700; margin-bottom:2px; color:#f8fafc;">${nearest.date}</div>
+            <div>Weight: <strong>${nearest.weight.toFixed(1)} g</strong></div>
+            <div>% Start: <strong style="color:${statusColor}">${nearest.pct.toFixed(1)}%</strong></div>
+          `;
+        } else if (tooltip) {
+          tooltip.style.display = 'none';
+        }
+      });
+
+      canvas.addEventListener('mouseleave', function () {
+        if (tooltip) tooltip.style.display = 'none';
+      });
+
+      if (window.ResizeObserver && container) {
+        const ro = new ResizeObserver(() => {
+          const activeA = ANIMALS_DATA.find(x => x.animal_id === currentAnimalId);
+          if (activeA && activeProfileTab === 'overview') {
+            drawWeightCanvas('canvas-overview-weight', activeA);
+          }
+        });
+        ro.observe(container);
       }
     }
   }
