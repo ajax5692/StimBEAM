@@ -1,8 +1,8 @@
-# StimBEAM (Stimulation, Behavioral and Ensemble Activity Mapper, formerly PStim Data Analysis Pipeline)
+# StimBEAM (Stimulation, Behavioral and Ensemble Activity Mapper)
 
 ⚙️🏗️ **Development in Progress**
 
-**StimBEAM** is a modular Django-based framework for managing experimental metadata and selected background data-analysis workflows for laboratory neuroscience projects. I named the current pipeline like this for now, as I will be primarily using this for my own experimental works, but subject to lab feedback, I plan to scale it up for other lab groups, hence the modular approach in designing it.
+**StimBEAM** (formerly PStim Data Analysis Pipeline or PStim_DAP) is a modular Django-based framework for managing experimental metadata and selected background data-analysis workflows for laboratory neuroscience projects. I named the current pipeline like this for now, as I will be primarily using this for my own experimental works, but subject to lab feedback, I plan to scale it up for other lab groups, hence the modular approach in designing it.
 
 The project is designed around independent experimental domains so that different research groups can use only the components relevant to their workflow.
 
