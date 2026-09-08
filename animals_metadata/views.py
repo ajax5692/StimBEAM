@@ -74,14 +74,22 @@ def mouse_tracker_view(request):
         latest_weight = latest_entry.body_weight_g if latest_entry else None
         latest_pct = latest_entry.percent_body_weight if latest_entry else None
 
-        is_active = a.status != Animal.StatusChoices.DEAD and a.pipeline_stage not in ["Finished", "Culled"]
+        is_active = (
+            a.status != Animal.StatusChoices.DEAD
+            and a.status not in ["Dead", "Culled"]
+            and a.pipeline_stage not in [
+                Animal.PipelineStageChoices.FINISHED,
+                Animal.PipelineStageChoices.CULLED,
+                "Finished",
+                "Culled",
+                "Dead",
+            ]
+        )
         if is_active:
             active_count += 1
 
-        is_water_restricted = bool(
-            water_start
-            or a.pipeline_stage in ["Behavior Training", "Water Restriction"]
-            or a.status == "Water restriction"
+        is_water_restricted = is_active and (
+            a.pipeline_stage in [Animal.PipelineStageChoices.BEHAVIOR_TRAINING, "Behavior Training"]
         )
         if is_water_restricted:
             water_restricted_count += 1
@@ -91,19 +99,22 @@ def mouse_tracker_view(request):
         if entries and entries[-1].date == today:
             weighed_today = True
 
-        if is_active and is_water_restricted and not weighed_today:
+        if is_water_restricted and not weighed_today:
             not_weighed_today_animals.append(a)
 
         # Days on water restriction
         restriction_day_str = "Not on restriction"
-        if water_start:
-            days_diff = (today - water_start).days + 1
-            if days_diff >= 1:
-                restriction_day_str = f"Day {days_diff} (Since {water_start})"
+        if is_water_restricted:
+            if water_start:
+                days_diff = (today - water_start).days + 1
+                if days_diff >= 1:
+                    restriction_day_str = f"Day {days_diff} (Since {water_start})"
+                else:
+                    restriction_day_str = f"Starts {water_start}"
             else:
-                restriction_day_str = f"Starts {water_start}"
-        elif is_water_restricted:
-            restriction_day_str = "Active (Date not set)"
+                restriction_day_str = "Active Training (Date not set)"
+        elif water_start:
+            restriction_day_str = f"Not on restriction (Prior start: {water_start})"
 
         # Prepare weights history list
         weights_list = []

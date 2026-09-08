@@ -81,4 +81,77 @@ class AnimalsMetadataTrackChangesTest(TestCase):
         self.assertContains(res, "ANIMALS METADATA")
         self.assertContains(res, "VIRUS METADATA")
 
+    def test_mouse_tracker_water_restricted_count(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+        from training_metadata.models import MouseBodyWeight
+
+        # Clean existing animals
+        Animal.objects.all().delete()
+
+        # 1. Create inactive / finished / culled / dead animals with water restriction logged
+        dead_animal = Animal.objects.create(
+            animal_id="DEAD01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.DEAD,
+            pipeline_stage=Animal.PipelineStageChoices.FINISHED,
+        )
+        MouseBodyWeight.objects.create(
+            animal=dead_animal,
+            water_restriction_start_date=timezone.now().date(),
+        )
+
+        culled_animal = Animal.objects.create(
+            animal_id="CULL01",
+            sex="F",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.CULLED,
+        )
+        MouseBodyWeight.objects.create(
+            animal=culled_animal,
+            water_restriction_start_date=timezone.now().date(),
+        )
+
+        User = get_user_model()
+        user, _ = User.objects.get_or_create(username="adminuser2", defaults={"is_superuser": True, "is_staff": True})
+        client = Client(SERVER_NAME="localhost")
+        client.force_login(user)
+
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.status_code, 200)
+        # When active_mice is 0, water_restricted must be 0
+        self.assertEqual(res.context["active_mice"], 0)
+        self.assertEqual(res.context["water_restricted_mice"], 0)
+
+        # 2. Add an active animal in Surgery (not in training)
+        surg_animal = Animal.objects.create(
+            animal_id="SURG01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.SURGERY,
+        )
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.context["active_mice"], 1)
+        self.assertEqual(res.context["water_restricted_mice"], 0)
+
+        # 3. Add an active animal in Behavior Training
+        train_animal = Animal.objects.create(
+            animal_id="TRAIN01",
+            sex="M",
+            genotype="Thy1-Cre",
+            dob=timezone.now().date(),
+            status=Animal.StatusChoices.ALIVE,
+            pipeline_stage=Animal.PipelineStageChoices.BEHAVIOR_TRAINING,
+        )
+        res = client.get("/admin/tracker/")
+        self.assertEqual(res.context["active_mice"], 2)
+        self.assertEqual(res.context["water_restricted_mice"], 1)
+
+
 

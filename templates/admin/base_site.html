@@ -2,7 +2,7 @@
 
 {% block branding %}
 <div id="site-name">
-  <a href="{% url 'admin:index' %}"> <b>StimBEAM</b> </a>
+  <a href="{% url 'mouse_tracker' %}"> <b>StimBEAM</b> </a>
   <span class="pstim-dashboard-section-subtitle"><br><b>Stim</b>ulation, <b>B</b>ehavioral
    and <b>E</b>nsemble <b>A</b>ctivity <b>M</b>apping</span>
 </div>
@@ -27,10 +27,13 @@
 <div class="pstim-top-nav">
   <div class="pstim-top-nav-inner">
 
+    <!-- Mouse Tracker / Dashboard link -->
+    <a href="/admin/tracker/"> 🐭 MOUSE TRACKER </a>
+
     <!-- Top Level: EXPERIMENTAL METADATA -->
     <div class="pstim-nav-item">
       <a href="/admin/">
-        EXPERIMENTAL METADATA
+        🔬 EXPERIMENTAL METADATA
         <span class="pstim-nav-caret" aria-hidden="true">▼</span>
       </a>
 
@@ -117,9 +120,6 @@
 
       </div>
     </div>
-
-    <!-- Mouse Tracker / Dashboard link -->
-    <a href="/admin/tracker/"> 🐭 MOUSE TRACKER </a>
 
     <!-- Auth link -->
     {% if installed_apps.django_contrib_auth %}
