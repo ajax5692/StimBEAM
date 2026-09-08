@@ -21,6 +21,7 @@ from django.urls import path
 
 # Disable the "VIEW SITE" link in Django Admin
 admin.site.site_url = None
+admin.site.index_title = ""
 
 urlpatterns = [
     path('admin/', admin.site.urls),

@@ -23,11 +23,12 @@ class AnimalsMetadataConfig(AppConfig):
                 "animals_metadata": [
                     "Animals",
                     "Viral Injections",
-                    "Vision Check",
+                    "Vision Checks",
                     "Track Changes",
                 ],
                 "virus_metadata": [
                     "Viruses",
+                    "Virus",
                     "Track Changes",
                 ],
                 "imaging_metadata": [

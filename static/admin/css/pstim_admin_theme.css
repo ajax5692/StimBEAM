@@ -12,6 +12,11 @@
   display: none !important;
 }
 
+/* Hide breadcrumbs across all admin pages */
+.breadcrumbs {
+  display: none !important;
+}
+
 /* =========================================================
    NESTED SUBMENU (FLYOUT) STYLES
    ========================================================= */
@@ -87,9 +92,18 @@
      PAGE WIDTH
      ========================================================= */
 
-.main {
+/* static/admin/css/pstim_admin_theme.css */
+
+.main > .content,
+.main.shifted > .content,
+.main > #nav-sidebar + .content,
+.main.shifted > #nav-sidebar + .content,
+#content-start.content {
+  max-width: 100% !important;
   width: 100% !important;
-  max-width: none !important;
+  flex: 1 1 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 #content {
@@ -97,7 +111,7 @@
   max-width: none !important;
 
   padding-left: 18px !important;
-  padding-right: 18px !important;
+  padding-right: 1px !important;
 
   box-sizing: border-box !important;
 }
@@ -117,26 +131,26 @@
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: center !important;
-
   width: 100% !important;
-
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
   box-sizing: border-box !important;
 }
-
+/* 2. Inset the title 18px from the left screen edge */
 #branding {
   order: 1 !important;
   flex: 0 0 auto !important;
+  padding-left: 18px !important;
 }
-
+/* 3. Inset the user links 18px from the right screen edge */
 #user-tools {
   order: 2 !important;
-
   margin-left: auto !important;
-
   flex: 0 0 auto !important;
-
   text-align: right !important;
   white-space: nowrap !important;
+  padding-right: 18px !important;
 }
 
 /* =========================================================
@@ -145,17 +159,14 @@
 
 .pstim-top-nav {
   order: 3 !important;
-
   flex: 0 0 100% !important;
   width: 100% !important;
-
-  margin-top: 8px !important;
-
+  margin-top: 10px !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   background: var(--body-bg);
-
   border-top: 1px solid var(--hairline-color);
   border-bottom: 1px solid var(--hairline-color);
-
   box-sizing: border-box !important;
 }
 
@@ -254,6 +265,66 @@
 .pstim-dropdown a:hover,
 .pstim-dropdown a:focus {
   background: var(--darkened-bg);
+}
+
+/* =========================================================
+   TOP APP NAVIGATION — NESTED SUBMENU FLYOUTS
+   ========================================================= */
+
+.pstim-dropdown-submenu {
+  position: relative;
+}
+
+.pstim-submenu-trigger {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px;
+}
+
+.pstim-submenu-caret {
+  font-size: 8px;
+  line-height: 1;
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+
+.pstim-dropdown-submenu:hover .pstim-submenu-caret {
+  opacity: 1;
+  color: var(--accent, #60a5fa);
+}
+
+.pstim-submenu-dropdown {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 220px;
+  padding: 6px 0;
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  z-index: 10001;
+}
+
+.pstim-dropdown-submenu:hover > .pstim-submenu-dropdown,
+.pstim-dropdown-submenu:focus-within > .pstim-submenu-dropdown {
+  display: block;
+}
+
+.pstim-submenu-dropdown a {
+  display: block;
+  padding: 9px 14px;
+  color: var(--body-fg);
+  background: var(--body-bg);
+  white-space: nowrap;
+  text-decoration: none;
+  border-right: 0 !important;
+}
+
+.pstim-submenu-dropdown a:hover {
+  background: var(--darkened-bg);
+  color: var(--accent, #60a5fa);
 }
 
 /*
@@ -1729,4 +1800,286 @@ body.model-trackchanges.change-list #result_list td:last-child {
 #pstim-copy-toast.show {
   opacity: 1;
   transform: translate(-50%, -50%) translateY(0);
+}
+
+/* =========================================================
+/* =========================================================
+   DASHBOARD 2-COLUMN LAYOUT (MAIN CARDS + RIGHT SIDEBAR)
+   ========================================================= */
+
+body.dashboard #content,
+body.dashboard #content.colMS,
+body.dashboard #content.colM {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 24px !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body.dashboard #content-main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  float: none !important;
+  margin: 0 !important;
+}
+
+body.dashboard #content-related {
+  flex: 0 0 380px !important;
+  width: 380px !important;
+  max-width: 440px !important;
+  float: none !important;
+  margin: 0 !important;
+  margin-right: 0 !important;
+  margin-top: 0 !important;
+  position: sticky !important;
+  top: 16px !important;
+}
+
+.pstim-dashboard-sidebar .module {
+  background: var(--darkened-bg, #181f2a) !important;
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: 12px !important;
+  padding: 18px 20px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  box-sizing: border-box !important;
+}
+
+.pstim-dashboard-sidebar h2 {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--body-fg, #f8fafc) !important;
+  margin: 0 0 12px 0 !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08)) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.pstim-dashboard-sidebar h3 {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin: 0 0 10px 0 !important;
+}
+
+.pstim-dashboard-sidebar .actionlist {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.pstim-dashboard-sidebar .actionlist li {
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease !important;
+}
+
+.pstim-dashboard-sidebar .actionlist li:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.pstim-dashboard-sidebar .actionlist a {
+  color: #60a5fa !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.pstim-dashboard-sidebar .actionlist a:hover {
+  text-decoration: underline !important;
+}
+
+.pstim-dashboard-sidebar .action-time {
+  display: block !important;
+  font-size: 11px !important;
+  color: #64748b !important;
+  margin-bottom: 2px !important;
+}
+
+.pstim-dashboard-sidebar .action-change-summary {
+  font-size: 11.5px !important;
+  color: #bd7575 !important;
+  margin-top: 4px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+}
+
+.pstim-dashboard-main {
+  padding-bottom: 20px;
+}
+
+.pstim-dashboard-section {
+  margin-bottom: 28px;
+}
+
+.pstim-dashboard-section-header {
+  margin-bottom: 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+}
+
+.pstim-dashboard-section-title {
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  color: var(--body-fg, #f8fafc) !important;
+  margin: 0 0 4px 0 !important;
+  letter-spacing: -0.2px;
+}
+
+/* static/admin/css/pstim_admin_theme.css (around Line 1944) */
+.pstim-dashboard-section-subtitle {
+  font-size: 15px; /* <--- Adjust size (e.g. 11px, 12px, 14px, 15px) */
+  line-height: 1.5; /* <--- Line spacing (helpful when using <br>) */
+  color: #b8bbbb; /* Muted gray text color */
+  display: inline-block; /* Ensures line-height and spacing render cleanly */
+}
+
+.pstim-dashboard-section-subtitle b {
+  color: #050505; /* Light blue accent for the acronym letters */
+  font-weight: 700;
+}
+
+/* Identical Sized Grid */
+.pstim-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+/* Restrict single card (Auth) from over-expanding */
+.pstim-card-auth {
+  max-width: 320px;
+}
+
+/* Rounded Square Card (Matching Reference Design) */
+.pstim-dashboard-card {
+  background: var(--darkened-bg, #181f2a);
+  border: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition:
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.pstim-dashboard-card:hover {
+  border-color: rgba(96, 165, 250, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Card Header (Category Title) */
+.pstim-card-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline-color, rgba(255, 255, 255, 0.06));
+}
+
+.pstim-card-app-title {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #94a3b8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+.pstim-card-app-title:hover {
+  color: #60a5fa !important;
+}
+
+/* Card Body & Model List */
+.pstim-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pstim-card-model-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pstim-card-model-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pstim-card-model-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pstim-card-model-name {
+  color: #f1f5f9 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  line-height: 1.3;
+}
+
+.pstim-card-model-name:hover {
+  color: #60a5fa !important;
+}
+
+.pstim-card-model-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pstim-card-add-btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #60a5fa !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  text-decoration: none !important;
+  border: 1px solid rgba(96, 165, 250, 0.25) !important;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pstim-card-add-btn:hover {
+  background: #60a5fa !important;
+  color: #0f172a !important;
+  border-color: #60a5fa !important;
 }
