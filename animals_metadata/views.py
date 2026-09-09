@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.utils import timezone
@@ -11,5 +12,9 @@ def mouse_tracker_view(request):
     Renders the unified Laboratory Dashboard & Mouse-Centric Profile Workstation.
     """
     today = timezone.now().date()
-    context = MouseTrackerService.get_tracker_dashboard_context(today=today)
+    context = {
+        **admin.site.each_context(request),
+        **MouseTrackerService.get_tracker_dashboard_context(today=today),
+        "title": "Laboratory Dashboard & Mouse Tracker",
+    }
     return render(request, "admin/mouse_tracker.html", context)

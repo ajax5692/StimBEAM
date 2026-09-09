@@ -152,6 +152,10 @@ class AnimalsMetadataTrackChangesTest(TestCase):
         res = client.get("/admin/tracker/")
         self.assertEqual(res.context["active_mice"], 2)
         self.assertEqual(res.context["water_restricted_mice"], 1)
+        self.assertContains(res, 'id="user-tools"')
+        self.assertContains(res, "adminuser2")
+        self.assertContains(res, "Log out")
+
 
 
 class MouseTrackerServiceTest(TestCase):
