@@ -1,4 +1,4 @@
-# StimBEAM (Stimulation, Behavioral and Ensemble Activity Mapper)
+# StimBEAM (Stimulation, Behavioral and Ensemble Activity Mapping)
 
 ⚙️🏗️ **Development in Progress**
 
