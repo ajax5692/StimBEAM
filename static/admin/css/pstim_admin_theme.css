@@ -143,14 +143,58 @@
   flex: 0 0 auto !important;
   padding-left: 18px !important;
 }
-/* 3. Inset the user links 18px from the right screen edge */
 #user-tools {
   order: 2 !important;
   margin-left: auto !important;
   flex: 0 0 auto !important;
   text-align: right !important;
-  white-space: nowrap !important;
   padding-right: 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 4px !important;
+}
+
+.pstim-user-tools-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+}
+
+.pstim-user-tools-row form#logout-form {
+  display: inline-flex !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.pstim-user-tools-row form#logout-form button {
+  background: none !important;
+  border: none !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  font: inherit !important;
+  padding: 0 !important;
+  text-decoration: underline !important;
+}
+
+.pstim-auth-sublink {
+  margin-top: 2px !important;
+}
+
+.pstim-auth-sublink a {
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  text-decoration: none !important;
+  letter-spacing: 0.3px !important;
+  transition: color 0.15s ease !important;
+}
+
+.pstim-auth-sublink a:hover {
+  color: #ebfa60 !important;
+  text-decoration: underline !important;
 }
 
 /* =========================================================

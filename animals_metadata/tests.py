@@ -76,10 +76,10 @@ class AnimalsMetadataTrackChangesTest(TestCase):
         client = Client(SERVER_NAME="localhost")
         client.force_login(user)
 
-        res = client.get("/admin/")
+        res = client.get("/admin/", follow=True)
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, "ANIMALS METADATA")
-        self.assertContains(res, "VIRUS METADATA")
+        self.assertContains(res, "Animals Metadata")
+        self.assertContains(res, "Virus Metadata")
 
     def test_mouse_tracker_water_restricted_count(self):
         from django.contrib.auth import get_user_model
