@@ -17,11 +17,15 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path
 
 # Disable the "VIEW SITE" link in Django Admin
 admin.site.site_url = None
 admin.site.index_title = ""
+
+# Redirect the admin index landing to the Mouse Tracker
+admin.site.index = lambda request, extra_context=None: redirect('mouse_tracker')
 
 from animals_metadata.views import mouse_tracker_view
 
