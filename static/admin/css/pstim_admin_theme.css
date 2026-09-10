@@ -380,6 +380,7 @@ body.pstim-app-index #content-main .module h2 {
    */
 body.pstim-app-index #content {
   padding-top: 12px !important;
+  padding-right: 15px !important;
 }
 
 body.pstim-app-index #content-main,
