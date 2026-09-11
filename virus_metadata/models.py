@@ -30,12 +30,8 @@ class Virus(models.Model):
         verbose_name="Location in -80°C Fridge",
     )
 
-    virus_owner = models.CharField(
-        max_length=100,
-        choices=Animal.OwnerChoices.choices,
-        blank=True,
-        null=True,
-        verbose_name="Virus Owner",
+    virus_owner = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Virus Owner"
     )
 
     history = HistoricalRecords()

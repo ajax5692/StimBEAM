@@ -9,11 +9,6 @@ class Animal(models.Model):
         MALE = 'M', 'Male'
         FEMALE  = 'F', 'Female'
         
-    class OwnerChoices(models.TextChoices):
-        AC = 'AC', 'Abhrajyoti'
-        TB  = 'TB', 'Balázs'
-        VK = 'VK', 'Varada'
-        
     class GenotypeChoices(models.TextChoices):
         TC = 'Thy1-Cre', 'Thy1-Cre'
         TG = 'Thy1-gcamp6s', 'Thy1/gcamp6s (Tg)'
@@ -33,7 +28,14 @@ class Animal(models.Model):
 
 
     animal_id = models.CharField(max_length=10,unique=True,verbose_name="Animal ID")
-    owner = models.CharField(max_length=100,choices=OwnerChoices.choices, null=True, blank=True)
+    
+    owner = models.ForeignKey("auth.User", 
+                              on_delete=models.SET_NULL,
+                              null=True, blank=True, verbose_name="Owner")
+    @property
+    def owner_first_name(self):
+        return self.owner.first_name if self.owner else ""
+    
     sex = models.CharField(max_length=100,choices=SexChoices.choices)
     genotype = models.CharField(max_length=100,choices=GenotypeChoices.choices)
     cage_id = models.CharField(max_length=100, null=True, blank=True,verbose_name="Cage ID")
@@ -204,24 +206,30 @@ class ViralInjection(models.Model):
         verbose_name="Inj. Date",
     )
 
-    injecting_person = models.CharField(
-        max_length=100,
-        choices=Animal.OwnerChoices.choices,
-        null=True,
-        blank=True,
-    )
+    injecting_person = models.ForeignKey(
+        "auth.User", null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="injections_performed",
+        verbose_name="Inj. Person")
+    @property
+    def inj_person_first_name(self):
+        return self.injecting_person.first_name if self.injecting_person else ""
 
     surgery_date = models.DateField(
         null=True,
         blank=True,
     )
 
-    surgery_person = models.CharField(
-        max_length=100,
-        choices=Animal.OwnerChoices.choices,
-        null=True,
-        blank=True,
+    surgery_person = models.ForeignKey(
+        "auth.User", null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="surgeries_performed",
+        verbose_name="Surgery Done By"
     )
+    @property
+    def surgery_person_first_name(self):
+        return self.surgery_person.first_name if self.surgery_person else ""
+    
 
     notes = models.TextField(
         blank=True,

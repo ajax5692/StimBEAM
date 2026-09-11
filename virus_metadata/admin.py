@@ -31,6 +31,13 @@ class VirusAdmin(SimpleHistoryAdmin):
         "virus_id",
     )
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "virus_owner" and formfield:
+            formfield.label_from_instance = lambda user: user.first_name if user.first_name else user.username
+        return formfield
+
+
 
 @admin.register(TrackChanges)
 class TrackChangesAdmin(BaseTrackChangesAdmin):

@@ -1,25 +1,32 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
 from virus_metadata.models import Virus
+
 from .models import Animal, TrackChanges, ViralInjection, VisionCheck
 
+User = get_user_model()
 
 class AnimalsMetadataTrackChangesTest(TestCase):
     def setUp(self):
+        # 1. Create test user instances
+        self.user_ac = User.objects.create(username="AC_user", first_name="Abhrajyoti")
+        self.user_tb = User.objects.create(username="TB_user", first_name="Tamás")
+        # 2. Pass user instances to virus_owner
         self.virus1 = Virus.objects.create(
             virus_id="AAV322",
             viral_construct="AAV9-hSyn-DIO-jGCaMP8s",
             titre="1.5x10^13",
             location_in_fridge="Box 1",
-            virus_owner="AC",
+            virus_owner=self.user_ac,  # <--- Pass User object
         )
         self.virus2 = Virus.objects.create(
             virus_id="AAV418",
             viral_construct="AAV9-hSyn-DIO-ChrimsonR",
             titre="2.0x10^13",
             location_in_fridge="Box 2",
-            virus_owner="TB",
+            virus_owner=self.user_tb,  # <--- Pass User object
         )
         self.animal = Animal.objects.create(
             animal_id="ANM01",

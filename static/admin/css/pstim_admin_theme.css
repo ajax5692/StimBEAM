@@ -538,7 +538,7 @@ body.change-list #changelist {
 
 .change-list #result_list th,
 .change-list #result_list td {
-  min-width: 0 !important;
+  width: 150px !important;
 
   box-sizing: border-box !important;
 
@@ -998,9 +998,10 @@ body.app-animals_metadata.model-viralinjection.change-list
 body.app-animals_metadata.model-viralinjection.change-list
   #result_list
   td.field-display_expression_mescfile_path {
-  width: 400px !important;
+  width: 500px !important;
   min-width: 200px !important;
-  max-width: 400px !important;
+  max-width: 600px !important;
+  white-space: normal !important;
 }
 
 /* =========================================================

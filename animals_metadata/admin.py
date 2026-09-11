@@ -19,7 +19,7 @@ from animals_metadata.utils import (
 class AnimalAdmin(SimpleHistoryAdmin):
     list_display = (
         "animal_id",
-        "owner",
+        "display_owner",
         "sex",
         "genotype",
         "dob",
@@ -50,6 +50,20 @@ class AnimalAdmin(SimpleHistoryAdmin):
         "sex",
         "owner",
     )
+    
+    # Customizes what text is shown in the dropdown options
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "owner" and formfield:
+            # Displays first_name (or falls back to username if first_name is empty)
+            formfield.label_from_instance = lambda user: user.first_name if user.first_name else user.username
+        return formfield
+    
+    @admin.display(description="Owner")
+    def display_owner(self, obj):
+        if obj.owner:
+            return obj.owner.first_name if obj.owner.first_name else obj.owner.username
+        return "-"
 
 
 @admin.register(VisionCheck)
@@ -78,6 +92,7 @@ class VisionCheckAdmin(SimpleHistoryAdmin):
     @admin.display(description="Animal ID")
     def get_animal_id(self, obj):
         return obj.animal_id
+    
     
     @admin.display(description="Data Path", ordering="data_path")
     def display_data_path(self, obj):
@@ -213,6 +228,18 @@ class ViralInjectionAdmin(SimpleHistoryAdmin):
         "site_2",
         "site_3",
     )
+    
+    # Customizes what text is shown in the dropdown options
+       # Customizes what text is shown in the dropdown options
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        
+        # Check both fields together
+        if db_field.name in ("injecting_person", "surgery_person") and formfield:
+            # Displays first_name (or falls back to username if first_name is empty)
+            formfield.label_from_instance = lambda user: user.first_name if user.first_name else user.username
+            
+        return formfield
 
     fieldsets = (
         (
@@ -297,7 +324,8 @@ class ViralInjectionAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="Owner")
     def get_owner(self, obj):
-        return obj.animal_id.owner
+        if obj.animal_id.owner.first_name and obj.animal_id.owner.last_name:
+            return f"{obj.animal_id.owner.first_name[0].upper()}{obj.animal_id.owner.last_name[0].upper()}"
 
     @admin.display(description="Virus / Volume / Site / Depth")
     def display_virus_injections(self, obj):
@@ -354,11 +382,13 @@ class ViralInjectionAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="Inj. Person")
     def get_inj_person(self, obj):
-        return obj.injecting_person
+        if obj.injecting_person.first_name and obj.injecting_person.last_name:
+            return f"{obj.injecting_person.first_name[0].upper()}{obj.injecting_person.last_name[0].upper()}"
 
     @admin.display(description="Sur. Person")
     def get_surgery_person(self, obj):
-        return obj.surgery_person
+        if obj.surgery_person.first_name and obj.surgery_person.last_name:
+            return f"{obj.surgery_person.first_name[0].upper()}{obj.surgery_person.last_name[0].upper()}"
     
     @admin.display(description="Expression (Checkup MESC File)", ordering="expression")
     def display_expression_mescfile_path(self, obj):

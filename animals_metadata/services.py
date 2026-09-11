@@ -57,7 +57,9 @@ class MouseTrackerService:
 
         virus_by_animal: Dict[int, List[ViralInjection]] = {}
         for vi in (
-            ViralInjection.objects.select_related("virus_id", "virus_id_2", "virus_id_3")
+            ViralInjection.objects.select_related(
+                "virus_id", "virus_id_2", "virus_id_3", "injecting_person", "surgery_person"
+            )
             .all()
             .order_by("-injection_date")
         ):
@@ -202,13 +204,17 @@ class MouseTrackerService:
 
             inj_list.append({
                 "date": str(vi.injection_date) if vi.injection_date else "—",
-                "person": vi.get_injecting_person_display()
-                if hasattr(vi, "get_injecting_person_display")
-                else (vi.injecting_person or "—"),
+                "person": (
+                    (vi.injecting_person.first_name or vi.injecting_person.username)
+                    if vi.injecting_person
+                    else "—"
+                ),
                 "surgery_date": str(vi.surgery_date) if vi.surgery_date else "—",
-                "surgery_person": vi.get_surgery_person_display()
-                if hasattr(vi, "get_surgery_person_display")
-                else (vi.surgery_person or "—"),
+                "surgery_person": (
+                    (vi.surgery_person.first_name or vi.surgery_person.username)
+                    if vi.surgery_person
+                    else "—"
+                ),
                 "injections": injections_summary,
                 "expression": vi.expression or "",
                 "notes": vi.notes or "",
@@ -326,9 +332,11 @@ class MouseTrackerService:
             "genotype": animal.get_genotype_display()
             if hasattr(animal, "get_genotype_display")
             else animal.genotype,
-            "owner": animal.get_owner_display()
-            if hasattr(animal, "get_owner_display")
-            else (animal.owner or "—"),
+            "owner": (
+                (animal.owner.first_name or animal.owner.username)
+                if animal.owner
+                else "—"
+            ),
             "cage_id": animal.cage_id or "—",
             "ogr_id": animal.ogr_id or "—",
             "project_id": animal.project_id or "—",
@@ -417,7 +425,7 @@ class MouseTrackerService:
         if today is None:
             today = timezone.now().date()
 
-        animals_qs = Animal.objects.all().order_by("animal_id")
+        animals_qs = Animal.objects.select_related("owner").all().order_by("animal_id")
         preloaded = cls.preload_colony_data()
 
         animals_data: List[Dict[str, Any]] = []
