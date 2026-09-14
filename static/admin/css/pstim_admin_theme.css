@@ -2891,3 +2891,71 @@ body.dashboard #content-related {
 .hidden {
   display: none !important;
 }
+
+/* =========================================================
+   LOGIN TRANSITION: CONTAINER VANISH + VIDEO FADE-IN
+   ========================================================= */
+
+/* 1. Implode animation for the login container */
+@keyframes implodeAndVanish {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  40% {
+    transform: scale(0.6);
+    opacity: 0.7;
+    filter: blur(2px);
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+    filter: blur(12px);
+  }
+}
+
+body.login.logging-in #container {
+  animation: implodeAndVanish 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* 2. Fullscreen Video Overlay (Background Dimmer & Centering Container) */
+#pstim-login-video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background-color: #212121;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.5s ease,
+    visibility 0.5s ease;
+  overflow: hidden;
+
+  /* --- Center the video on the screen --- */
+  display: flex;
+  align-items: center; /* Centers vertically */
+  justify-content: center; /* Centers horizontally */
+}
+
+/* 3. Centered Video Element with Custom Dimensions */
+#pstim-login-video-overlay video {
+  width: 800px; /* Set your desired width (e.g., 600px, 800px, or 60vw) */
+  max-width: 90vw; /* Ensures it never exceeds the screen width on smaller monitors */
+  height: auto; /* Automatically calculates height matching the video aspect ratio */
+  max-height: 80vh; /* Ensures it never exceeds screen height */
+  object-fit: contain; /* Fits cleanly inside the bounding box */
+  border-radius: 12px; /* Optional: modern rounded corners */
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7); /* Optional: floating depth shadow */
+}
+
+/* Shown when logging in */
+body.login.logging-in #pstim-login-video-overlay {
+  opacity: 1;
+  visibility: visible;
+}
