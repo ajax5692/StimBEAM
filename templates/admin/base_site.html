@@ -171,8 +171,7 @@
 <!-- Fullscreen Background Video Overlay for Login Transition -->
 <div id="pstim-login-video-overlay">
   <video id="pstim-login-video" muted playsinline loop preload="auto">
-    <source src="{% static 'admin/media/StimBeam_1_mod.mp4' %}" type="video/mp4">
-    <source src="{% static 'admin/media/StimBEAM_1_mod.mp4' %}" type="video/mp4">
+    <source src="{% static 'admin/media_html/StimBEAM_1_fast_1080p.mp4' %}" type="video/mp4">
   </video>
 </div>
 {{ block.super }}
@@ -185,6 +184,14 @@
 
     if (overlay && overlay.parentElement !== document.body) {
       document.body.appendChild(overlay);
+    }
+
+    if (transitionVideo) {
+      try {
+        transitionVideo.load();
+      } catch (e) {
+        // Fallback
+      }
     }
 
     if (loginForm && transitionVideo) {
@@ -205,7 +212,7 @@
           // 1. Trigger container vanish and fade-in video overlay
           document.body.classList.add("logging-in");
 
-          // 2. Play video immediately at 16x speed
+          // 2. Play video smoothly at 16.0x (pre-rendered 60fps all-intra stream)
           try {
             transitionVideo.currentTime = 0;
             transitionVideo.playbackRate = 16.0;
@@ -221,7 +228,7 @@
             console.warn("Video playback setup error:", err);
           }
 
-          // 3. Play for 1.0 seconds (1000ms), then submit form to proceed
+          // 3. Play for 1.0 seconds (2000ms), then submit form to proceed
           setTimeout(function () {
             HTMLFormElement.prototype.submit.call(loginForm);
           }, 1000);

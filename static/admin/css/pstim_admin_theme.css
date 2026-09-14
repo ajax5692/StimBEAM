@@ -2896,28 +2896,26 @@ body.dashboard #content-related {
    LOGIN TRANSITION: CONTAINER VANISH + VIDEO FADE-IN
    ========================================================= */
 
-/* 1. Implode animation for the login container */
+/* 1. Implode animation for the login container (hardware accelerated) */
 @keyframes implodeAndVanish {
   0% {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0px);
   }
   40% {
     transform: scale(0.6);
     opacity: 0.7;
-    filter: blur(2px);
   }
   100% {
     transform: scale(0);
     opacity: 0;
-    filter: blur(12px);
   }
 }
 
 body.login.logging-in #container {
   animation: implodeAndVanish 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
 /* 2. Fullscreen Video Overlay (Background Dimmer & Centering Container) */
@@ -2930,17 +2928,16 @@ body.login.logging-in #container {
   z-index: 99999;
   background-color: #212121;
   opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transition:
-    opacity 0.5s ease,
-    visibility 0.5s ease;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 
   /* --- Center the video on the screen --- */
   display: flex;
   align-items: center; /* Centers vertically */
   justify-content: center; /* Centers horizontally */
+  transform: translateZ(0); /* Hardware accelerated compositing layer */
+  will-change: opacity;
 }
 
 /* 3. Centered Video Element with Custom Dimensions */
@@ -2949,13 +2946,16 @@ body.login.logging-in #container {
   max-width: 90vw; /* Ensures it never exceeds the screen width on smaller monitors */
   height: auto; /* Automatically calculates height matching the video aspect ratio */
   max-height: 80vh; /* Ensures it never exceeds screen height */
+  aspect-ratio: 703 / 384; /* Locks aspect ratio (2812x1536 / 1920x1048) to eliminate layout reflow */
   object-fit: contain; /* Fits cleanly inside the bounding box */
   border-radius: 12px; /* Optional: modern rounded corners */
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7); /* Optional: floating depth shadow */
+  transform: translateZ(0); /* Force GPU video blit with zero stutter */
+  backface-visibility: hidden;
 }
 
 /* Shown when logging in */
 body.login.logging-in #pstim-login-video-overlay {
   opacity: 1;
-  visibility: visible;
+  pointer-events: auto;
 }
