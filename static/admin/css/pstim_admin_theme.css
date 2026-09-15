@@ -2438,6 +2438,8 @@ body.dashboard #content-related {
 
 .pstim-stage-pill {
   display: inline-block;
+  width: 100px;
+  text-align: center;
   padding: 3px 10px;
   border-radius: 99px;
   font-size: 11.5px;
