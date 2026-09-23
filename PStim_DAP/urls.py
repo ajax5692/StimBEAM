@@ -25,7 +25,7 @@ admin.site.site_url = None
 admin.site.index_title = ""
 
 # Redirect the admin index landing to the Mouse Tracker
-admin.site.index = lambda request, extra_context=None: redirect('mouse_tracker')
+# admin.site.index = lambda request, extra_context=None: redirect('mouse_tracker')
 
 from animals_metadata.views import mouse_tracker_view
 

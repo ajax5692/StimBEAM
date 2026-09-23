@@ -852,7 +852,7 @@ body.app-animals_metadata.model-animal.change-list
 body.app-animals_metadata.model-animal.change-list
   #result_list
   td.column-ogr_id {
-  width: 130px !important;
+  width: 200px !important;
 }
 
 /* =========================================================
