@@ -1,7 +1,9 @@
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from simple_history.signals import post_create_historical_record
 
 from animals_metadata.utils import format_initial_entry, get_user_initials
+from imaging_metadata.models import ImagingSession
 
 from .models import AnalysisRun, TrackChanges
 
@@ -79,4 +81,36 @@ def create_track_change(sender, instance, history_instance, **kwargs):
         ),
         changes=changes_text,
     )
+
+
+@receiver(post_delete, sender=AnalysisRun)
+def update_session_on_run_deletion(sender, instance, **kwargs):
+    """
+    When an AnalysisRun is deleted, update the parent session's
+    analysis_performed status to 'Record Deleted', unless another
+    completed analysis run still exists for that session.
+    """
+    try:
+        session = instance.imaging_session
+    except Exception:
+        session = None
+
+    if not session:
+        return
+
+    # Check if any other COMPLETED run still exists for this session
+    has_other_completed_run = AnalysisRun.objects.filter(
+        imaging_session=session,
+        status=AnalysisRun.StatusChoices.COMPLETED,
+    ).exclude(pk=instance.pk).exists()
+
+    if has_other_completed_run:
+        new_status = ImagingSession.AnalysisPerformedChoices.YES
+    else:
+        new_status = ImagingSession.AnalysisPerformedChoices.RECORD_DELETED
+
+    if session.analysis_performed != new_status:
+        session.analysis_performed = new_status
+        session.save(update_fields=["analysis_performed"])
+
 
