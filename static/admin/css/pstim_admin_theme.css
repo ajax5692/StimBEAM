@@ -1295,6 +1295,7 @@ body.app-training_metadata.model-trainingsession.change-list
   #result_list
   td.field-display_bpod_file_path {
   width: 300px !important;
+  white-space: normal !important;
 }
 
 /* Training Unit Range */
