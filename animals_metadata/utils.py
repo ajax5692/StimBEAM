@@ -317,6 +317,18 @@ class BaseAsyncJobModel(models.Model):
             ]
         )
 
+    def mark_completed(self) -> None:
+        self.status = self.StatusChoices.COMPLETED
+        self.completed_at = timezone.now()
+        self.error_message = ""
+        self.save(
+            update_fields=[
+                "status",
+                "completed_at",
+                "error_message",
+            ]
+        )
+
     def mark_failed(self, error_message: Any = "") -> None:
         self.status = self.StatusChoices.FAILED
         self.completed_at = timezone.now()

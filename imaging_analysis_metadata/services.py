@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db import transaction
 
 from .models import AnalysisRun
+from .notifications import notify_analysis_completed, notify_analysis_failed
 
 
 def get_analysis_inputs(analysis_run: AnalysisRun) -> Dict[str, Any]:
@@ -188,6 +189,8 @@ def execute_analysis(
         )
 
         analysis_run.mark_completed()
+        # Trigger Success Notification
+        notify_analysis_completed(analysis_run)
         
         # Automatically update the parent ImagingSession to 'Yes'
         session = analysis_run.imaging_session
@@ -203,11 +206,16 @@ def execute_analysis(
         return analysis_run
 
     except KeyboardInterrupt:
-        analysis_run.mark_failed("Analysis interrupted by user or worker shutdown.")
+        shutdown_msg = "Analysis interrupted by user or worker shutdown."
+        analysis_run.mark_failed(shutdown_msg)
+        # Trigger Failure Notification
+        notify_analysis_failed(analysis_run, shutdown_msg)
         raise
 
     except Exception as exc:
         analysis_run.mark_failed(str(exc))
+        # Trigger Failure Notification
+        notify_analysis_failed(analysis_run, str(exc))
         raise
 
 
