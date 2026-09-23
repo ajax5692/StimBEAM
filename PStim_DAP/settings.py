@@ -203,3 +203,6 @@ SUITE2P_RUNNER_SCRIPT = os.environ.get(
     r"C:\Users\abhrajyoti.chakrabarti\Documents\suite2p_venv\suite2p\customScripts\analysis_runner.py",
 )
 
+# Push Notification Settings
+NTFY_ENABLED = True
+NTFY_TOPIC = "StimBEAM_AJ"  # Replace with your unique private topic name
