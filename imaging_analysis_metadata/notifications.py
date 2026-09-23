@@ -39,6 +39,10 @@ def send_ntfy_push(
         req.add_header("Priority", priority)
     if tags:
         req.add_header("Tags", tags)
+        
+    token = getattr(settings, "NTFY_AUTH_TOKEN", None)
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
 
     try:
         with urllib.request.urlopen(req, timeout=5) as response:

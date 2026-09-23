@@ -205,4 +205,6 @@ SUITE2P_RUNNER_SCRIPT = os.environ.get(
 
 # Push Notification Settings
 NTFY_ENABLED = True
-NTFY_TOPIC = "StimBEAM_AJ"  # Replace with your unique private topic name
+NTFY_TOPIC = "StimBEAM_AJ"
+NTFY_SERVER = "http://127.0.0.1:8080"
+NTFY_AUTH_TOKEN = os.environ.get("NTFY_AUTH_TOKEN")
