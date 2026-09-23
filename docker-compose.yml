@@ -1,7 +1,8 @@
+name: stimbeam
 services:
   postgres:
     image: postgres:16
-    container_name: pstim_postgres_dev
+    container_name: stimbeam_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -12,5 +13,22 @@ services:
     volumes:
       - pstim_postgres_data:/var/lib/postgresql/data
 
+  ntfy:
+    image: binwiederhier/ntfy
+    container_name: stimbeam_ntfy
+    restart: unless-stopped
+    command:
+      - serve
+    environment:
+      - TZ=UTC
+      - NTFY_AUTH_FILE=/var/cache/ntfy/user.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+    ports:
+      - "8080:80"
+    volumes:
+      - ntfy_data:/var/cache/ntfy
 volumes:
   pstim_postgres_data:
+    name: pstim_data_analysis_pipeline_pstim_postgres_data
+  ntfy_data:
+    external: true

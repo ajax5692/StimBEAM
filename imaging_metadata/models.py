@@ -50,6 +50,7 @@ class ImagingSession(models.Model):
     class AnalysisPerformedChoices(models.TextChoices):
         YES = 'Y', 'Yes'
         NO  = 'N', 'No'
+        RECORD_DELETED = 'D', 'Record Deleted'  # System-managed label
         
     analysis_performed = models.TextField(
         blank=True,
