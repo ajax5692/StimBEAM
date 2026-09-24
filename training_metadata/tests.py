@@ -452,6 +452,11 @@ class MouseTrainingRecordAdminTest(TestCase):
         response = self.client.get(change_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "bpod_test.mat")
+        self.assertContains(response, 'class="pstim-copy-button"')
+        self.assertContains(response, 'data-copy-text="/data/bpod_test.mat"')
+        self.assertContains(response, "form-multiline")
+        self.assertIsNone(response.context.get("subtitle"))
+        self.assertNotContains(response, f"<h2>{record.animal.animal_id}</h2>")
         self.assertContains(response, "1:15")
         self.assertContains(response, "1.75")
 

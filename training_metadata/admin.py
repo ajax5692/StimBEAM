@@ -204,6 +204,35 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         return redirect("admin:training_session_lick_traces", session_id=session.pk)
 
 
+class CopyablePathInput(forms.TextInput):
+    """
+    TextInput widget with an inline copy button on the left for file paths.
+    """
+    def render(self, name, value, attrs=None, renderer=None):
+        input_html = super().render(name, value, attrs, renderer)
+        val_str = str(value or "").strip()
+        copy_btn_html = format_html(
+            '<button type="button" class="pstim-copy-button" data-copy-text="{}" '
+            'title="Copy BPod file path" aria-label="Copy BPod file path" '
+            'style="background: transparent; border: none; cursor: pointer; padding: 2px 4px; color: #94a3b8; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.15s ease;" '
+            'onmouseover="this.style.color=\'#38bdf8\';" onmouseout="this.style.color=\'#94a3b8\';">'
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            '<rect x="8" y="8" width="12" height="12" rx="2"></rect>'
+            '<path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>'
+            '</svg>'
+            '</button>',
+            val_str,
+        )
+        return format_html(
+            '<div style="display: inline-flex; align-items: center; gap: 4px; width: 100%; min-width: 220px;">'
+            '{}'
+            '{}'
+            '</div>',
+            copy_btn_html,
+            input_html,
+        )
+
+
 class TrainingSessionInline(admin.TabularInline):
     model = TrainingSession
     fk_name = "tracker"
@@ -227,11 +256,18 @@ class TrainingSessionInline(admin.TabularInline):
         "display_lick_traces_link",
         "display_delete_action",
     )
-    formfield_overrides = {
-        models.CharField: {
-            "widget": forms.TextInput(attrs={"style": "min-width: 140px;"}),
-        },
-    }
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "bpod_file_path":
+            kwargs["widget"] = CopyablePathInput(attrs={"style": "width: 100%; min-width: 200px;"})
+            return db_field.formfield(**kwargs)
+        if db_field.name == "training_unit_range":
+            kwargs["widget"] = forms.TextInput(attrs={"style": "min-width: 110px;"})
+            return db_field.formfield(**kwargs)
+        if db_field.name == "notes":
+            kwargs["widget"] = forms.TextInput(attrs={"style": "min-width: 140px;"})
+            return db_field.formfield(**kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     @admin.display(description="Status")
     def display_status(self, obj):
@@ -381,8 +417,10 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
             {
                 "fields": (
                     "animal",
-                    "get_owner_display",
-                    "notes",
+                    (
+                        "get_owner_display",
+                        "notes",
+                    ),
                 ),
             },
         ),
@@ -391,6 +429,18 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
     readonly_fields = (
         "get_owner_display",
     )
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": forms.Textarea(
+                attrs={
+                    "rows": 2,
+                    "style": "width: 100%; min-width: 320px; max-width: 600px; resize: vertical;",
+                    "placeholder": "Notes...",
+                }
+            ),
+        },
+    }
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -460,6 +510,10 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
             self.message_user(request, f"Mouse training record for {obj.animal.animal_id} was saved successfully.")
             return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
         return super().response_change(request, obj)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        context["subtitle"] = None
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
     def has_delete_permission(self, request, obj=None):
         """
