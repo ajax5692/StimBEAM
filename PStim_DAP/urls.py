@@ -18,7 +18,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.shortcuts import redirect
-from django.urls import path
+from django.urls import path, reverse
 
 # Disable the "VIEW SITE" link in Django Admin
 admin.site.site_url = None
@@ -26,6 +26,27 @@ admin.site.index_title = ""
 
 # Redirect the admin index landing to the Mouse Tracker
 # admin.site.index = lambda request, extra_context=None: redirect('mouse_tracker')
+
+original_admin_login = admin.site.login
+
+def custom_admin_login(request, extra_context=None):
+    admin_index_path = reverse('admin:index')
+    # If no specific deep link was requested (or if it defaulted to /admin/)
+    if request.GET.get('next') in (None, '', admin_index_path, admin_index_path.rstrip('/')):
+        extra_context = extra_context or {}
+        extra_context['next'] = reverse('mouse_tracker')
+
+    response = original_admin_login(request, extra_context=extra_context)
+
+    # If the login process redirects to /admin/, steer it to the Mouse Tracker
+    if response.status_code == 302 and response.url in (admin_index_path, admin_index_path.rstrip('/')):
+        tracker_url = reverse('mouse_tracker')
+        response.url = tracker_url
+        response['Location'] = tracker_url
+
+    return response
+
+admin.site.login = custom_admin_login
 
 from animals_metadata.views import mouse_tracker_view
 
