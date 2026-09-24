@@ -448,6 +448,21 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertContains(response, bw_mouse_link)
         self.assertContains(response, trn_mouse_link)
 
+    def test_app_index_model_ordering(self):
+        url = reverse("admin:app_list", args=["training_metadata"])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        app = response.context["app_list"][0]
+        model_names = [m["name"] for m in app["models"]]
+        expected_names = [
+            "Mouse Body Weight Records",
+            "Mouse Training Records",
+            "Mouse Training Sessions",
+            "Track Changes",
+        ]
+        self.assertEqual(model_names, expected_names)
+
     def test_owner_first_name_harmonized_across_training_and_body_weight(self):
         self.admin_user.first_name = "Alex"
         self.admin_user.save()

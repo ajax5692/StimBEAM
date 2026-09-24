@@ -432,7 +432,7 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
     def get_owner_display(self, obj):
         if obj and obj.animal and obj.animal.owner:
             owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
-            return f"{owner_name} ({obj.animal.owner.username})"
+            return f"{owner_name}"
         return "-"
 
     @admin.display(description="Total Sessions")

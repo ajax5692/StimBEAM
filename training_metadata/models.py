@@ -153,7 +153,7 @@ class TrainingSession(BaseAsyncJobModel):
         ordering = ["-training_date"]
 
     def __str__(self):
-        return f"{self.animal.animal_id} - {self.training_date}"
+        return ""
 
 
 class MouseBodyWeight(models.Model):

@@ -1581,13 +1581,45 @@ body.app-training_metadata.model-mousetrainingrecord .inline-related table td {
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
   table
+  th.original,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.original {
+  padding: 0 !important;
+  width: 0 !important;
+  max-width: 0 !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.original
+  p,
+.tabular tr td.original p {
+  display: none !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
   th.column-training_date,
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
   table
   td.field-training_date {
-  width: 170px !important;
-  min-width: 150px !important;
+  width: 230px !important;
+  min-width: 230px !important;
+  white-space: nowrap !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-training_date
+  p.date {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
 }
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
@@ -1681,6 +1713,52 @@ body.app-training_metadata.model-mousetrainingrecord
 #result_list th.column-get_latest_d_prime a,
 #result_list th.column-get_latest_d_prime .text {
   text-transform: none !important;
+}
+
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-training_date,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-training_date {
+  width: 230px !important;
+  min-width: 230px !important;
+  white-space: nowrap !important;
+}
+
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-training_date
+  p.date {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+}
+
+/* 1. Spacing between the 3 elements */
+body.model-mousetrainingrecord .form-row.field-animal {
+  display: flex !important;
+  gap: 40px !important; /* Adjust gap (e.g., 20px, 40px, 60px) */
+  align-items: flex-start !important;
+}
+
+/* 2. Optional fixed widths for alignment */
+body.model-mousetrainingrecord .fieldBox.field-animal {
+  min-width: 100px !important;
+}
+
+body.model-mousetrainingrecord .fieldBox.field-get_owner_display {
+  min-width: 140px !important;
+}
+
+body.model-mousetrainingrecord .fieldBox.field-notes {
+  flex: 1 !important; /* Allows notes to stretch and fill remaining space */
+  max-width: 500px !important;
 }
 
 /* =========================================================
