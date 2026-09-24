@@ -160,6 +160,35 @@ class TrainingAnalysisServiceAndAdminTest(TestCase):
                 self.assertTrue(bool(claimed.output_excel_path))
                 self.assertIn("n_trials", claimed.metrics_json)
                 self.assertEqual(claimed.metrics_json["n_trials"], 12)
+                self.assertIn("d_prime", claimed.metrics_json)
+                self.assertIn("hit_rate", claimed.metrics_json)
+                self.assertIn("false_alarm_rate", claimed.metrics_json)
+                self.assertAlmostEqual(claimed.metrics_json["d_prime"], 1.163, places=2)
+
+    def test_d_prime_calculation_with_unit_range_3_174(self):
+        test_mat_path = r"C:\Users\abhrajyoti.chakrabarti\Desktop\64gb_usb_dump\TrainingData\m67_new_VisGo_GoProb_Train_measure_20250926_132921.mat"
+        if not os.path.exists(test_mat_path):
+            return
+
+        session = TrainingSession.objects.create(
+            animal=self.animal,
+            training_date=timezone.now().date(),
+            bpod_file_path=test_mat_path,
+            training_unit_range="3:174",
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            execute_training_analysis(session, output_dir=tmpdir)
+            session.refresh_from_db()
+            self.assertEqual(session.status, TrainingSession.StatusChoices.COMPLETED)
+            m = session.metrics_json
+            self.assertEqual(m["n_trials"], 165)
+            self.assertEqual(m["n_go_trials"], 92)
+            self.assertEqual(m["n_nogo_trials"], 73)
+            self.assertEqual(m["n_hits"], 60)
+            self.assertEqual(m["n_false_alarms"], 7)
+            self.assertAlmostEqual(m["hit_rate"], 60 / 92, places=3)
+            self.assertAlmostEqual(m["false_alarm_rate"], 7 / 73, places=3)
+            self.assertAlmostEqual(m["d_prime"], 1.661, places=2)
 
     def test_admin_lick_traces_view(self):
         session = TrainingSession.objects.create(

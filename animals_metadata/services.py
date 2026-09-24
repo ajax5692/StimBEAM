@@ -266,6 +266,32 @@ class MouseTrackerService:
             for ts in preloaded["training"].get(animal.id, [])
         ]
 
+        # Chronological d' performance history for completed training sessions
+        d_prime_history: List[Dict[str, Any]] = []
+        raw_training = preloaded["training"].get(animal.id, [])
+        sorted_training = sorted(
+            [ts for ts in raw_training if getattr(ts, "training_date", None)],
+            key=lambda x: (x.training_date, x.id),
+        )
+        for ts in sorted_training:
+            metrics = ts.metrics_json or {}
+            if "d_prime" in metrics and metrics["d_prime"] is not None:
+                d_prime_history.append({
+                    "session_id": ts.id,
+                    "date": str(ts.training_date),
+                    "d_prime": float(metrics["d_prime"]),
+                    "hit_rate": float(metrics.get("hit_rate", 0.0)),
+                    "false_alarm_rate": float(metrics.get("false_alarm_rate", 0.0)),
+                    "units": ts.training_unit_range or "",
+                    "n_go": metrics.get("n_go_trials", 0),
+                    "n_nogo": metrics.get("n_nogo_trials", 0),
+                    "hits": metrics.get("n_hits", 0),
+                    "misses": metrics.get("n_misses", 0),
+                    "fas": metrics.get("n_false_alarms", 0),
+                    "crs": metrics.get("n_correct_rejections", 0),
+                    "criterion_c": metrics.get("criterion_c", 0.0),
+                })
+
         # Master Timeline collation
         timeline: List[Dict[str, Any]] = []
         if animal.dob:
@@ -360,6 +386,7 @@ class MouseTrackerService:
             "vision": v_list,
             "viruses": inj_list,
             "training_sessions": train_list,
+            "d_prime_history": d_prime_history,
             "imaging": im_list,
             "timeline": timeline,
         }
