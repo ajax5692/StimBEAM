@@ -242,24 +242,20 @@
               </div>
             </div>
 
-            <!-- Right Graph: Reserved Space for Future Analytics -->
-            <div class="pstim-overview-card pstim-overview-placeholder">
+            <!-- Right Graph: Daywise Behavioral Performance (d') -->
+            <div class="pstim-overview-card">
               <div class="pstim-chart-header">
                 <div class="pstim-chart-title">
-                  <span>📊 Behavioral Performance & Analytics</span>
+                  <span>🎯 Daywise Performance (<i>d'</i>)</span>
                 </div>
-                <div class="pstim-chart-badges">
-                  <span class="pstim-pill accent">Upcoming Feature</span>
-                </div>
+                <div class="pstim-chart-badges" id="overview-dprime-badges"></div>
               </div>
-              <div class="pstim-canvas-container pstim-placeholder-container">
-                <div class="pstim-placeholder-content">
-                  <div class="pstim-placeholder-icon">📈</div>
-                  <div class="pstim-placeholder-title">Analytics Plot Reserved</div>
-                  <div class="pstim-placeholder-desc">
-                    Calculation modules and performance metrics are currently under development. This visualization slot is reserved for upcoming behavioral and trial response curves.
-                  </div>
+              <div class="pstim-canvas-container" id="overview-dprime-canvas-container">
+                <canvas id="canvas-overview-dprime"></canvas>
+                <div id="overview-dprime-empty" class="pstim-chart-empty" style="display: none;">
+                  <span>No analyzed training sessions recorded yet.</span>
                 </div>
+                <div id="overview-dprime-tooltip" class="pstim-chart-tooltip"></div>
               </div>
             </div>
 
@@ -360,6 +356,6 @@
      EMBEDDED DATA & MODULAR CLIENT SCRIPT
      ========================================================= -->
 <script id="pstim-animals-data" type="application/json">{{ animals_json|safe }}</script>
-<script src="{% static 'admin/js/mouse_tracker.js' %}"></script>
+<script src="{% static 'admin/js/mouse_tracker.js' %}?v=2"></script>
 {% endblock %}
 

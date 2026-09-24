@@ -16,6 +16,7 @@ import numpy.typing as npt
 import pandas as pd
 import scipy.io as sio
 from scipy.signal import windows
+from scipy.stats import norm
 
 
 DEFAULT_PLOT_STYLE: Dict[str, Any] = {
@@ -52,6 +53,16 @@ class ExtractionResult(TypedDict):
     punish_onset: float
     figures: List[plt.Figure]
     unit_range: Optional[str]
+    d_prime: float
+    hit_rate: float
+    false_alarm_rate: float
+    n_go_trials: int
+    n_nogo_trials: int
+    n_hits: int
+    n_misses: int
+    n_false_alarms: int
+    n_correct_rejections: int
+    criterion_c: float
 
 
 from animals_metadata.utils import parse_unit_ranges
@@ -229,6 +240,105 @@ def compute_smoothed_averages_and_integrals(
                 max_ampl = float(np.max(y_lick_avg[tt]))
 
     return y_lick_avg, intgr_stimulus, max_ampl
+
+
+def compute_signal_detection_metrics(
+    trial_types_raw: npt.NDArray[np.int_],
+    selected_indices: List[int],
+    excluded: npt.NDArray[np.bool_],
+    session_data: Any,
+    trial_lick_events: Dict[int, npt.NDArray[np.float64]],
+    so: float,
+    ro: float,
+) -> Dict[str, Any]:
+    """
+    Calculate Signal Detection Theory metrics: d' (sensitivity index), Criterion c,
+    Hit Rate, and False Alarm Rate for visual Go vs. No-Go discrimination tasks.
+
+    Uses the standard Hautus (1995) log-linear adjustment for extreme rates (0 or 1):
+        HitRate_adj = (Hits + 0.5) / (n_go + 1)
+        FARate_adj = (FAs + 0.5) / (n_nogo + 1)
+        d' = Z(HitRate_adj) - Z(FARate_adj)
+        c = -0.5 * (Z(HitRate_adj) + Z(FARate_adj))
+    """
+    trial_outcomes_raw = _to_1d_array(_get_field(session_data, "TrialOutcomes")).astype(int)
+    has_outcomes = len(trial_outcomes_raw) > 0
+
+    hits = 0
+    misses = 0
+    fas = 0
+    crs = 0
+    n_go = 0
+    n_nogo = 0
+
+    response_end = max(ro, so + 1.0) if ro > 0 else (so + 2.0)
+
+    for i in selected_indices:
+        if excluded[i]:
+            continue
+
+        tt = int(trial_types_raw[i]) if i < len(trial_types_raw) else 0
+
+        if tt == 1:  # Visual Go stimulus
+            n_go += 1
+            if has_outcomes and i < len(trial_outcomes_raw):
+                # In Bpod Visual Go/NoGo protocol: outcome 1 = Hit, outcome 0 = Miss
+                outcome = trial_outcomes_raw[i]
+                if outcome == 1:
+                    hits += 1
+                else:
+                    misses += 1
+            else:
+                licks = trial_lick_events.get(i, np.array([], dtype=np.float64))
+                licked = np.any((licks >= so) & (licks <= response_end))
+                if licked:
+                    hits += 1
+                else:
+                    misses += 1
+
+        elif tt == 2:  # Visual No-Go stimulus
+            n_nogo += 1
+            if has_outcomes and i < len(trial_outcomes_raw):
+                # In Bpod Visual Go/NoGo protocol: outcome 2 = False Alarm, outcome 3 = Correct Rejection
+                outcome = trial_outcomes_raw[i]
+                if outcome == 2:
+                    fas += 1
+                else:
+                    crs += 1
+            else:
+                licks = trial_lick_events.get(i, np.array([], dtype=np.float64))
+                licked = np.any((licks >= so) & (licks <= response_end))
+                if licked:
+                    fas += 1
+                else:
+                    crs += 1
+
+    # Raw empirical rates
+    raw_hit_rate = round(hits / n_go, 4) if n_go > 0 else 0.0
+    raw_fa_rate = round(fas / n_nogo, 4) if n_nogo > 0 else 0.0
+
+    # Hautus (1995) log-linear adjustment for normal quantile conversion
+    adj_hit_rate = (hits + 0.5) / (n_go + 1) if n_go > 0 else 0.5
+    adj_fa_rate = (fas + 0.5) / (n_nogo + 1) if n_nogo > 0 else 0.5
+
+    z_hit = float(norm.ppf(adj_hit_rate))
+    z_fa = float(norm.ppf(adj_fa_rate))
+
+    d_prime = round(float(z_hit - z_fa), 3)
+    criterion_c = round(float(-0.5 * (z_hit + z_fa)), 3)
+
+    return {
+        "d_prime": d_prime,
+        "hit_rate": raw_hit_rate,
+        "false_alarm_rate": raw_fa_rate,
+        "n_go_trials": n_go,
+        "n_nogo_trials": n_nogo,
+        "n_hits": hits,
+        "n_misses": misses,
+        "n_false_alarms": fas,
+        "n_correct_rejections": crs,
+        "criterion_c": criterion_c,
+    }
 
 
 def generate_lick_figures(
@@ -506,6 +616,17 @@ def extractLicking_lickTriggeredReward(
     selected_indices = [t - 1 for t in valid_selected_trials]
     excluded_in_selection = int(np.sum(excluded[selected_indices]))
 
+    # Signal Detection Theory analysis (d', Hit Rate, False Alarm Rate)
+    sdt_metrics = compute_signal_detection_metrics(
+        trial_types_raw=trial_types_raw,
+        selected_indices=selected_indices,
+        excluded=excluded,
+        session_data=session_data,
+        trial_lick_events=trial_lick_events,
+        so=so,
+        ro=ro,
+    )
+
     filename_base = os.path.basename(sessionfilename_str)
     print("\n" + "=" * 60)
     print(f"File: {filename_base}")
@@ -519,6 +640,12 @@ def extractLicking_lickTriggeredReward(
     for tt in intgr_stimulus:
         label = "go trial" if tt == 1 else "no-go trial"
         print(f"Integral Stimulus period ({so:.2f}s to {ro:.2f}s), {label} (type {tt}) curve: {intgr_stimulus[tt]:.3f}")
+    if sdt_metrics["n_go_trials"] > 0 or sdt_metrics["n_nogo_trials"] > 0:
+        print(
+            f"Sensitivity (d'): {sdt_metrics['d_prime']:.3f} | Criterion (c): {sdt_metrics['criterion_c']:.3f}\n"
+            f"Hit Rate: {sdt_metrics['hit_rate'] * 100:.1f}% ({sdt_metrics['n_hits']}/{sdt_metrics['n_go_trials']}) | "
+            f"False Alarm Rate: {sdt_metrics['false_alarm_rate'] * 100:.1f}% ({sdt_metrics['n_false_alarms']}/{sdt_metrics['n_nogo_trials']})"
+        )
     print("=" * 60 + "\n")
 
     figs: List[plt.Figure] = []
@@ -573,6 +700,7 @@ def extractLicking_lickTriggeredReward(
         "punish_onset": po,
         "figures": figs,
         "unit_range": unit_range_label,
+        **sdt_metrics,
     }
 
 

@@ -7,6 +7,8 @@ let currentAnimalId = null;
 let activeProfileTab = "overview";
 let overviewChartPoints = [];
 let overviewTooltipAttached = false;
+let dprimeChartPoints = [];
+let dprimeTooltipAttached = false;
 
 function getAnimalsData() {
   if (ANIMALS_DATA && ANIMALS_DATA.length > 0) {
@@ -192,6 +194,7 @@ function renderSubTabContent(a) {
   // 1. Overview Canvas Chart
   if (activeProfileTab === "overview") {
     drawWeightCanvas("canvas-overview-weight", a);
+    drawDPrimeCanvas("canvas-overview-dprime", a);
   }
 
   // 2. Vision Checks
@@ -758,6 +761,370 @@ function drawWeightCanvas(canvasId, a) {
         const activeA = animals.find((x) => x.animal_id === currentAnimalId);
         if (activeA && activeProfileTab === "overview") {
           drawWeightCanvas("canvas-overview-weight", activeA);
+        }
+      });
+      ro.observe(container);
+    }
+  }
+}
+
+// Pure HTML5 Canvas Behavioral Performance Chart (d' Learning Curve)
+function drawDPrimeCanvas(canvasId, a) {
+  const canvas = document.getElementById(canvasId);
+  const container = document.getElementById("overview-dprime-canvas-container");
+  const emptyMsg = document.getElementById("overview-dprime-empty");
+  const tooltip = document.getElementById("overview-dprime-tooltip");
+  const badgesContainer = document.getElementById("overview-dprime-badges");
+
+  if (!canvas || !container) return;
+
+  const ctx = canvas.getContext("2d");
+  dprimeChartPoints = [];
+
+  // Parse and prepare d' performance data
+  const rawHistory = a.d_prime_history || [];
+  const data = [];
+  rawHistory.forEach((item) => {
+    const dVal = parseFloat(item.d_prime);
+    if (item.date && !isNaN(dVal)) {
+      data.push({
+        session_id: item.session_id,
+        date: item.date,
+        d_prime: dVal,
+        hit_rate: item.hit_rate != null ? parseFloat(item.hit_rate) : null,
+        false_alarm_rate:
+          item.false_alarm_rate != null
+            ? parseFloat(item.false_alarm_rate)
+            : null,
+        units: item.units || "",
+        n_go: item.n_go || 0,
+        n_nogo: item.n_nogo || 0,
+        hits: item.hits || 0,
+        misses: item.misses || 0,
+        fas: item.fas || 0,
+        crs: item.crs || 0,
+        criterion_c:
+          item.criterion_c != null ? parseFloat(item.criterion_c) : null,
+      });
+    }
+  });
+
+  data.sort((x, y) =>
+    x.date > y.date ? 1 : x.date < y.date ? -1 : x.session_id - y.session_id,
+  );
+
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = rect.width || 400;
+  const height = 240;
+
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  if (data.length === 0) {
+    ctx.clearRect(0, 0, width, height);
+    if (emptyMsg) emptyMsg.style.display = "flex";
+    if (badgesContainer) badgesContainer.innerHTML = "";
+    if (tooltip) tooltip.style.display = "none";
+    ctx.restore();
+    return;
+  }
+
+  if (emptyMsg) emptyMsg.style.display = "none";
+
+  const latest = data[data.length - 1];
+  const dColor =
+    latest.d_prime >= 1.5
+      ? "#10b981"
+      : latest.d_prime >= 1.0
+        ? "#f59e0b"
+        : "#94a3b8";
+
+  // Update badges
+  if (badgesContainer) {
+    const hrPct =
+      latest.hit_rate != null ? (latest.hit_rate * 100).toFixed(1) + "%" : "—";
+    const faPct =
+      latest.false_alarm_rate != null
+        ? (latest.false_alarm_rate * 100).toFixed(1) + "%"
+        : "—";
+
+    badgesContainer.innerHTML = `
+      <span class="mbw-badge start" title="Most recent d' sensitivity score">
+        Latest <i>d'</i>: <strong style="color: ${dColor}">${latest.d_prime.toFixed(2)}</strong>
+      </span>
+      <span class="mbw-badge latest" title="Latest Hit Rate">
+        Hit Rate: <strong>${hrPct}</strong>
+      </span>
+      <span class="mbw-badge limit" title="Latest False Alarm Rate">
+        FA Rate: <strong>${faPct}</strong>
+      </span>
+    `;
+  }
+
+  const margin = {
+    top: 25,
+    right: 90,
+    bottom: 38,
+    left: 55,
+  };
+
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+
+  const minObserved = Math.min(...data.map((d) => d.d_prime), 0.0);
+  const maxObserved = Math.max(...data.map((d) => d.d_prime), 2.0);
+
+  let minD = Math.min(0.0, Math.floor(minObserved));
+  let maxD = Math.max(2.5, Math.ceil(maxObserved + 0.5));
+
+  function getY(val) {
+    return margin.top + plotH - ((val - minD) / (maxD - minD)) * plotH;
+  }
+
+  function getX(idx) {
+    if (data.length === 1) return margin.left + plotW / 2;
+    return margin.left + (idx / (data.length - 1)) * plotW;
+  }
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Grid lines & Y-axis ticks
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.fillStyle = "rgba(200, 210, 220, 0.65)";
+  ctx.font = "10.5px Inter, system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+
+  const tickSteps = Math.min(5, Math.max(3, Math.round(maxD - minD)));
+  for (let i = 0; i <= tickSteps; i++) {
+    const val = minD + ((maxD - minD) / tickSteps) * i;
+    const y = getY(val);
+
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(margin.left + plotW, y);
+    ctx.stroke();
+
+    ctx.fillText(`${val.toFixed(1)}`, margin.left - 8, y);
+  }
+
+  // Y Axis Rotated Label
+  ctx.save();
+  ctx.translate(14, margin.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(200, 210, 220, 0.5)";
+  ctx.font = "10px Inter, system-ui, sans-serif";
+  ctx.fillText("Sensitivity (d')", 0, 0);
+  ctx.restore();
+
+  // Benchmark line: d' = 1.5 (Expert discrimination)
+  const yBench = getY(1.5);
+  if (yBench >= margin.top - 5 && yBench <= margin.top + plotH + 5) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(margin.left, yBench);
+    ctx.lineTo(margin.left + plotW, yBench);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#10b981";
+    ctx.font = "bold 10px Inter, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Criterion (1.5)", margin.left + plotW + 6, yBench);
+    ctx.restore();
+  }
+
+  // Baseline line: d' = 0.0 (Chance discrimination)
+  const yZero = getY(0.0);
+  if (yZero >= margin.top - 5 && yZero <= margin.top + plotH + 5) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.moveTo(margin.left, yZero);
+    ctx.lineTo(margin.left + plotW, yZero);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(148, 163, 184, 0.7)";
+    ctx.font = "10px Inter, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Chance (0.0)", margin.left + plotW + 6, yZero);
+    ctx.restore();
+  }
+
+  // Plot Line & Gradient Fill
+  if (data.length > 0) {
+    ctx.save();
+    const gradient = ctx.createLinearGradient(
+      0,
+      margin.top,
+      0,
+      margin.top + plotH,
+    );
+    gradient.addColorStop(0, "rgba(16, 185, 129, 0.28)");
+    gradient.addColorStop(1, "rgba(16, 185, 129, 0.0)");
+
+    ctx.beginPath();
+    data.forEach((d, idx) => {
+      const x = getX(idx);
+      const y = getY(d.d_prime);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.lineTo(getX(data.length - 1), margin.top + plotH);
+    ctx.lineTo(getX(0), margin.top + plotH);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.restore();
+
+    // Stroke line
+    ctx.save();
+    ctx.beginPath();
+    data.forEach((d, idx) => {
+      const x = getX(idx);
+      const y = getY(d.d_prime);
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+    ctx.restore();
+
+    // Points & X Labels
+    data.forEach((d, idx) => {
+      const x = getX(idx);
+      const y = getY(d.d_prime);
+
+      const ptColor =
+        d.d_prime >= 1.5 ? "#10b981" : d.d_prime >= 1.0 ? "#f59e0b" : "#ef4444";
+
+      dprimeChartPoints.push({
+        x,
+        y,
+        date: d.date,
+        session_id: d.session_id,
+        d_prime: d.d_prime,
+        hit_rate: d.hit_rate,
+        false_alarm_rate: d.false_alarm_rate,
+        units: d.units,
+        n_go: d.n_go,
+        n_nogo: d.n_nogo,
+        hits: d.hits,
+        misses: d.misses,
+        fas: d.fas,
+        crs: d.crs,
+        criterion_c: d.criterion_c,
+      });
+
+      // Draw dot
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = ptColor;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+
+      // X-axis date label
+      ctx.save();
+      ctx.fillStyle = "rgba(200, 210, 220, 0.75)";
+      ctx.font = "10px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const shortDate = d.date.length > 5 ? d.date.slice(5) : d.date;
+      ctx.fillText(shortDate, x, margin.top + plotH + 8);
+      ctx.restore();
+    });
+  }
+
+  ctx.restore();
+
+  // Attach hover listener once
+  if (!dprimeTooltipAttached) {
+    dprimeTooltipAttached = true;
+    canvas.addEventListener("mousemove", function (e) {
+      const cRect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - cRect.left;
+      const mouseY = e.clientY - cRect.top;
+
+      let nearest = null;
+      let minDist = 24;
+
+      dprimeChartPoints.forEach((pt) => {
+        const dist = Math.hypot(pt.x - mouseX, pt.y - mouseY);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = pt;
+        }
+      });
+
+      if (nearest && tooltip) {
+        tooltip.style.display = "block";
+        tooltip.style.left = nearest.x + "px";
+        tooltip.style.top = nearest.y + "px";
+
+        const hrDisplay =
+          nearest.hit_rate != null
+            ? (nearest.hit_rate * 100).toFixed(1) + "%"
+            : "—";
+        const faDisplay =
+          nearest.false_alarm_rate != null
+            ? (nearest.false_alarm_rate * 100).toFixed(1) + "%"
+            : "—";
+        const unitDisplay = nearest.units ? ` (Units: ${nearest.units})` : "";
+        const ptColor =
+          nearest.d_prime >= 1.5
+            ? "#10b981"
+            : nearest.d_prime >= 1.0
+              ? "#f59e0b"
+              : "#ef4444";
+
+        tooltip.innerHTML = `
+          <div style="font-weight:700; margin-bottom:2px; color:#f8fafc;">
+            ${nearest.date}${unitDisplay}
+          </div>
+          <div>Sensitivity (<i>d'</i>): <strong style="color:${ptColor}">${nearest.d_prime.toFixed(2)}</strong></div>
+          <div>Hit Rate: <strong>${hrDisplay}</strong> <span style="font-size:10px; color:#94a3b8">(${nearest.hits}/${nearest.n_go})</span></div>
+          <div>FA Rate: <strong>${faDisplay}</strong> <span style="font-size:10px; color:#94a3b8">(${nearest.fas}/${nearest.n_nogo})</span></div>
+          ${nearest.criterion_c != null ? `<div style="font-size:10.5px; color:#94a3b8; margin-top:2px;">Criterion (c): ${nearest.criterion_c.toFixed(2)}</div>` : ""}
+        `;
+      } else if (tooltip) {
+        tooltip.style.display = "none";
+      }
+    });
+
+    canvas.addEventListener("mouseleave", function () {
+      if (tooltip) tooltip.style.display = "none";
+    });
+
+    if (window.ResizeObserver && container) {
+      const ro = new ResizeObserver(() => {
+        const animals = getAnimalsData();
+        const activeA = animals.find((x) => x.animal_id === currentAnimalId);
+        if (activeA && activeProfileTab === "overview") {
+          drawDPrimeCanvas("canvas-overview-dprime", activeA);
         }
       });
       ro.observe(container);

@@ -22,6 +22,16 @@ class TrainingAnalysisMetrics(TypedDict):
     reward_onset: float
     punish_onset: float
     integral_stimulus: Dict[str, float]
+    d_prime: float
+    hit_rate: float
+    false_alarm_rate: float
+    n_go_trials: int
+    n_nogo_trials: int
+    n_hits: int
+    n_misses: int
+    n_false_alarms: int
+    n_correct_rejections: int
+    criterion_c: float
 
 
 def get_analysis_inputs(training_session: TrainingSession) -> Dict[str, Any]:
@@ -144,6 +154,16 @@ def execute_training_analysis(
             "reward_onset": round(float(result.get("reward_onset", 0.0)), 2),
             "punish_onset": round(float(result.get("punish_onset", 0.0)), 2),
             "integral_stimulus": intgr_stim,
+            "d_prime": round(float(result.get("d_prime", 0.0)), 3),
+            "hit_rate": round(float(result.get("hit_rate", 0.0)), 4),
+            "false_alarm_rate": round(float(result.get("false_alarm_rate", 0.0)), 4),
+            "n_go_trials": int(result.get("n_go_trials", 0)),
+            "n_nogo_trials": int(result.get("n_nogo_trials", 0)),
+            "n_hits": int(result.get("n_hits", 0)),
+            "n_misses": int(result.get("n_misses", 0)),
+            "n_false_alarms": int(result.get("n_false_alarms", 0)),
+            "n_correct_rejections": int(result.get("n_correct_rejections", 0)),
+            "criterion_c": round(float(result.get("criterion_c", 0.0)), 3),
         }
 
         training_session.metrics_json = metrics
