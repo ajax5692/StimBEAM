@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -15,7 +16,13 @@ from animals_metadata.utils import (
     render_copyable_path_widget,
 )
 
-from .models import BodyWeightEntry, MouseBodyWeight, TrackChanges, TrainingSession
+from .models import (
+    BodyWeightEntry,
+    MouseBodyWeight,
+    MouseTrainingRecord,
+    TrackChanges,
+    TrainingSession,
+)
 from .services import execute_training_analysis
 
 
@@ -27,6 +34,7 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         "animal",
         "training_date",
         "display_status",
+        "display_d_prime",
         "display_bpod_file_path",
         "training_unit_range",
         "display_lick_traces_link",
@@ -143,6 +151,14 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
             url,
         )
 
+    @admin.display(description="d'")
+    def display_d_prime(self, obj):
+        if not obj or not obj.metrics_json or "d_prime" not in obj.metrics_json:
+            return "-"
+        d_val = obj.metrics_json["d_prime"]
+        color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+        return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -186,6 +202,305 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
                 f"Training analysis failed: {exc}",
             )
         return redirect("admin:training_session_lick_traces", session_id=session.pk)
+
+
+class TrainingSessionInline(admin.TabularInline):
+    model = TrainingSession
+    fk_name = "tracker"
+    extra = 0
+    can_delete = False
+    fields = (
+        "training_date",
+        "bpod_file_path",
+        "training_unit_range",
+        "display_status",
+        "display_d_prime",
+        "display_performance",
+        "display_lick_traces_link",
+        "display_delete_action",
+        "notes",
+    )
+    readonly_fields = (
+        "display_status",
+        "display_d_prime",
+        "display_performance",
+        "display_lick_traces_link",
+        "display_delete_action",
+    )
+    formfield_overrides = {
+        models.CharField: {
+            "widget": forms.TextInput(attrs={"style": "min-width: 140px;"}),
+        },
+    }
+
+    @admin.display(description="Status")
+    def display_status(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        if obj.status == TrainingSession.StatusChoices.RUNNING:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 6px; color: #60a5fa; font-weight: 600;">'
+                '<span>{}</span>'
+                '<span style="'
+                'width: 12px;'
+                'height: 12px;'
+                'border: 2px solid rgba(255,255,255,0.35);'
+                'border-top-color: currentColor;'
+                'border-radius: 50%;'
+                'display: inline-block;'
+                'animation: analysis-spin 0.8s linear infinite;'
+                'flex-shrink: 0;'
+                '"></span>'
+                '</span>',
+                "Running",
+            )
+        elif obj.status == TrainingSession.StatusChoices.COMPLETED:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 4px; color: #4ade80; font-weight: 600;">'
+                '<span>{}</span>'
+                '</span>',
+                "✓ Completed",
+            )
+        elif obj.status == TrainingSession.StatusChoices.FAILED:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 4px; color: #f87171; font-weight: 600;" title="{}">'
+                '<span>{}</span>'
+                '</span>',
+                obj.error_message or "Analysis failed",
+                "✗ Failed",
+            )
+        return format_html(
+            '<span style="color: #facc15; font-weight: 600;">{}</span>',
+            "Pending",
+        )
+
+    @admin.display(description="d'")
+    def display_d_prime(self, obj):
+        if not obj or not obj.metrics_json or "d_prime" not in obj.metrics_json:
+            return "-"
+        d_val = obj.metrics_json["d_prime"]
+        color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+        return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+
+    @admin.display(description="Performance (Hit / FA)")
+    def display_performance(self, obj):
+        if not obj or not obj.metrics_json:
+            return "-"
+        m = obj.metrics_json
+        hr = m.get("hit_rate")
+        far = m.get("false_alarm_rate")
+        if hr is not None and far is not None:
+            return format_html(
+                '<span style="font-size: 12px; color: #cbd5e1;">Hit: <strong style="color: #4ade80;">{}%</strong> | FA: <strong style="color: #f87171;">{}%</strong></span>',
+                f"{hr * 100:.1f}",
+                f"{far * 100:.1f}",
+            )
+        return "-"
+
+    @admin.display(description="Lick Traces")
+    def display_lick_traces_link(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        url = reverse("admin:training_session_lick_traces", args=[obj.pk])
+        if obj.status == TrainingSession.StatusChoices.COMPLETED:
+            return format_html(
+                '<a href="{}" target="_blank" class="button" style="background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; white-space: nowrap;">'
+                '📊 View Traces'
+                '</a>',
+                url,
+            )
+        return format_html(
+            '<a href="{}" target="_blank" class="button" style="background: #334155; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">'
+            'Open Viewer'
+            '</a>',
+            url,
+        )
+
+    @admin.display(description="Delete")
+    def display_delete_action(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        record_id = obj.tracker_id or (
+            obj.animal.training_record.id
+            if (obj.animal and hasattr(obj.animal, "training_record"))
+            else None
+        )
+        if not record_id:
+            return "-"
+        delete_url = reverse("admin:training_delete_session", args=[record_id, obj.pk])
+        date_str = (
+            obj.training_date.strftime("%Y-%m-%d")
+            if obj.training_date
+            else f"#{obj.pk}"
+        )
+        return format_html(
+            '<a href="{}" onclick="return confirm(\'Are you sure you want to delete the training session for {}? This cannot be undone.\');" '
+            'class="button" style="background: #dc2626; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">'
+            '<span>🗑️</span><span>Delete</span>'
+            '</a>',
+            delete_url,
+            date_str,
+        )
+
+
+@admin.register(MouseTrainingRecord)
+class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
+    inlines = [TrainingSessionInline]
+    list_select_related = ("animal", "animal__owner")
+
+    list_display = (
+        "get_animal_id",
+        "get_owner",
+        "get_total_sessions",
+        "get_latest_training_date",
+        "get_latest_d_prime",
+        "get_pipeline_stage",
+    )
+
+    list_filter = (
+        "animal__owner",
+        "animal__status",
+        "animal__pipeline_stage",
+    )
+
+    search_fields = (
+        "animal__animal_id",
+        "animal__owner__username",
+        "animal__owner__first_name",
+        "animal__owner__last_name",
+        "notes",
+    )
+
+    ordering = (
+        "animal__animal_id",
+    )
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "animal",
+                    "get_owner_display",
+                    "notes",
+                ),
+            },
+        ),
+    )
+
+    readonly_fields = (
+        "get_owner_display",
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + ("animal",)
+        return self.readonly_fields
+
+    @admin.display(description="Animal ID", ordering="animal__animal_id")
+    def get_animal_id(self, obj):
+        return obj.animal.animal_id if obj.animal else "-"
+
+    @admin.display(description="Owner", ordering="animal__owner")
+    def get_owner(self, obj):
+        if obj.animal and obj.animal.owner:
+            return obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+        return "-"
+
+    @admin.display(description="Owner")
+    def get_owner_display(self, obj):
+        if obj and obj.animal:
+            owner_name = obj.animal.owner.first_name if (obj.animal.owner and obj.animal.owner.first_name) else (obj.animal.owner.username if obj.animal.owner else "None")
+            return f"{owner_name} ({obj.animal.owner})"
+        return "-"
+
+    @admin.display(description="Total Sessions")
+    def get_total_sessions(self, obj):
+        return obj.sessions.count()
+
+    @admin.display(description="Last Training Day")
+    def get_latest_training_date(self, obj):
+        latest = obj.sessions.order_by("-training_date", "-id").first()
+        return latest.training_date if latest else "-"
+
+    @admin.display(description="Latest d'")
+    def get_latest_d_prime(self, obj):
+        latest = obj.sessions.filter(status=TrainingSession.StatusChoices.COMPLETED).order_by("-training_date", "-id").first()
+        if latest and latest.metrics_json and "d_prime" in latest.metrics_json:
+            d_val = latest.metrics_json["d_prime"]
+            color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+            return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+        return "-"
+
+    @admin.display(description="Pipeline Stage", ordering="animal__pipeline_stage")
+    def get_pipeline_stage(self, obj):
+        return obj.animal.get_pipeline_stage_display() if (obj.animal and hasattr(obj.animal, "get_pipeline_stage_display")) else (obj.animal.pipeline_stage if obj.animal else "-")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("sessions")
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, TrainingSession):
+                if not instance.animal_id and form.instance.animal_id:
+                    instance.animal = form.instance.animal
+                instance.tracker = form.instance
+            instance.save()
+        formset.save_m2m()
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_save" in request.POST:
+            self.message_user(request, f"Mouse training record for {obj.animal.animal_id} was saved successfully.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        if "_save" in request.POST:
+            self.message_user(request, f"Mouse training record for {obj.animal.animal_id} was saved successfully.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
+        return super().response_change(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        """
+        Prevent accidental deletion of the entire mouse training record container
+        and all associated sessions.
+        """
+        return False
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:record_id>/delete-session/<int:session_id>/",
+                self.admin_site.admin_view(self.delete_session_view),
+                name="training_delete_session",
+            ),
+        ]
+        return custom_urls + urls
+
+    def delete_session_view(self, request, record_id, session_id):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+
+        record = get_object_or_404(MouseTrainingRecord, pk=record_id)
+        session = TrainingSession.objects.filter(pk=session_id).first()
+        if not session:
+            messages.warning(request, "Training session not found or already deleted.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
+
+        if session.tracker_id != record.pk and session.animal_id != record.animal_id:
+            messages.error(request, "This training session does not belong to this animal.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
+
+        date_str = str(session.training_date)
+        animal_str = str(session.animal.animal_id) if session.animal else ""
+        session.delete()
+        messages.success(
+            request,
+            f"Training session ({date_str}) for animal {animal_str} was deleted successfully.",
+        )
+        return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
 
 
 class BodyWeightEntryInline(admin.TabularInline):

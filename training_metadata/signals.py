@@ -5,7 +5,13 @@ from django.dispatch import receiver
 from simple_history.signals import post_create_historical_record
 
 from animals_metadata.utils import record_track_change
-from .models import BodyWeightEntry, MouseBodyWeight, TrackChanges, TrainingSession
+from .models import (
+    BodyWeightEntry,
+    MouseBodyWeight,
+    MouseTrainingRecord,
+    TrackChanges,
+    TrainingSession,
+)
 
 
 @receiver(post_create_historical_record)
@@ -20,7 +26,16 @@ def create_track_change(
     """
     model = instance.__class__
 
-    if model is TrainingSession:
+    if model is MouseTrainingRecord:
+        category = TrackChanges.CategoryChoices.MOUSE_TRAINING
+        try:
+            animal_id = instance.animal.animal_id
+        except Exception:
+            animal_id = getattr(history_instance, "animal_id", None)
+            if animal_id is not None:
+                animal_id = str(animal_id)
+
+    elif model is TrainingSession:
         category = TrackChanges.CategoryChoices.TRAINING_SESSION
         try:
             animal_id = instance.animal.animal_id

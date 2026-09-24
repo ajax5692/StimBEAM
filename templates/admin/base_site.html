@@ -138,8 +138,8 @@
           </a>
           <!-- Second Level Flyout: Training Models -->
           <div class="pstim-submenu-dropdown">
-            <a href="/admin/training_metadata/trainingsession/"> Training Sessions </a>
-            <a href="/admin/training_metadata/mousebodyweight/"> Mice Body Weight Records </a>
+            <a href="/admin/training_metadata/mousetrainingrecord/"> Mouse Training Records </a>
+            <a href="/admin/training_metadata/mousebodyweight/"> Mouse Body Weight Records </a>
             <a href="/admin/training_metadata/trackchanges/"> Track Changes </a>
           </div>
         </div>
@@ -284,7 +284,7 @@
 
     {% if installed_apps.imaging_analysis_metadata or installed_apps.training_metadata %}
     /* =======================================================
-       ANALYSIS RUN LIVE POLLING
+       ANALYSIS RUN LIVE POLLING (CHANGELISTS)
        ======================================================= */
     const isAnalysisRunPage =
       {% if installed_apps.imaging_analysis_metadata %}path.includes("/admin/imaging_analysis_metadata/analysisrun/"){% else %}false{% endif %} ||
@@ -359,6 +359,95 @@
       });
 
       setTimeout(refreshAnalysisRows, 1000);
+    }
+
+    /* =======================================================
+       MOUSE TRAINING RECORD INLINE LIVE POLLING (SINGLE ANIMAL)
+       ======================================================= */
+    const isMouseTrainingChangePage = path.includes("/admin/training_metadata/mousetrainingrecord/") && path.includes("/change/");
+    const sessionsGroup = document.querySelector("#sessions-group");
+
+    if (isMouseTrainingChangePage && sessionsGroup) {
+      const INLINE_POLL_INTERVAL = 3000;
+      let inlinePollInProgress = false;
+
+      function hasActiveTrainingJobs() {
+        const text = sessionsGroup.innerText || "";
+        return text.includes("Running") || text.includes("Pending");
+      }
+
+      async function refreshTrainingSessionsInline() {
+        if (inlinePollInProgress) return;
+        if (document.hidden) return;
+
+        // If the user is currently editing an input inside the table, do not interrupt
+        const activeEl = document.activeElement;
+        if (activeEl && sessionsGroup.contains(activeEl)) return;
+
+        if (!hasActiveTrainingJobs()) return;
+
+        inlinePollInProgress = true;
+        try {
+          const response = await fetch(window.location.href, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+
+          if (!response.ok) return;
+
+          const html = await response.text();
+          const parser = new DOMParser();
+          const newDoc = parser.parseFromString(html, "text/html");
+
+          const currentTbody = sessionsGroup.querySelector("table tbody");
+          const newTbody = newDoc.querySelector("#sessions-group table tbody");
+
+          if (currentTbody && newTbody) {
+            const currentRows = currentTbody.querySelectorAll("tr.form-row.has_original");
+            const newRows = newTbody.querySelectorAll("tr.form-row.has_original");
+
+            if (currentRows.length === newRows.length && currentRows.length > 0) {
+              const cellsToSync = [
+                ".field-display_status",
+                ".field-display_d_prime",
+                ".field-display_performance",
+                ".field-display_lick_traces_link",
+                ".field-display_delete_action",
+              ];
+              currentRows.forEach((row, idx) => {
+                const newRow = newRows[idx];
+                cellsToSync.forEach((selector) => {
+                  const currCell = row.querySelector(selector);
+                  const newCell = newRow.querySelector(selector);
+                  if (currCell && newCell && currCell.innerHTML !== newCell.innerHTML) {
+                    currCell.innerHTML = newCell.innerHTML;
+                  }
+                });
+              });
+            } else if (currentTbody.innerHTML !== newTbody.innerHTML) {
+              currentTbody.innerHTML = newTbody.innerHTML;
+            }
+          }
+        } catch (err) {
+          console.debug("Training session inline polling temporarily unavailable:", err);
+        } finally {
+          inlinePollInProgress = false;
+        }
+      }
+
+      setInterval(refreshTrainingSessionsInline, INLINE_POLL_INTERVAL);
+
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden && hasActiveTrainingJobs()) {
+          refreshTrainingSessionsInline();
+        }
+      });
+
+      if (hasActiveTrainingJobs()) {
+        setTimeout(refreshTrainingSessionsInline, 1000);
+      }
     }
     {% endif %}
   });

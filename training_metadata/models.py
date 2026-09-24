@@ -10,11 +10,47 @@ from animals_metadata.utils import (
 )
 
 
+class MouseTrainingRecord(models.Model):
+    animal = models.OneToOneField(
+        "animals_metadata.Animal",
+        on_delete=models.CASCADE,
+        related_name="training_record",
+        verbose_name="Animal ID",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Notes",
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Mouse Training Record"
+        verbose_name_plural = "Mouse Training Records"
+        ordering = ["animal__animal_id"]
+
+    def __str__(self):
+        return f"{self.animal.animal_id}"
+
+
 class TrainingSession(BaseAsyncJobModel):
+    tracker = models.ForeignKey(
+        MouseTrainingRecord,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+        verbose_name="Mouse Training Record",
+        null=True,
+        blank=True,
+    )
+
     animal = models.ForeignKey(
         "animals_metadata.Animal",
         on_delete=models.PROTECT,
         related_name="training_sessions",
+        null=True,
+        blank=True,
     )
 
     training_date = models.DateField()
@@ -66,6 +102,8 @@ class TrainingSession(BaseAsyncJobModel):
     )
 
     def clean(self):
+        if hasattr(self, "tracker") and self.tracker and not (hasattr(self, "animal") and self.animal):
+            self.animal = self.tracker.animal
         super().clean()
         if hasattr(self, "animal_id") and self.animal_id and self.training_date and self.training_unit_range:
             validate_non_overlapping_session_units(
@@ -80,8 +118,13 @@ class TrainingSession(BaseAsyncJobModel):
             )
 
     def save(self, *args, **kwargs):
+        if self.tracker_id and not self.animal_id:
+            self.animal = self.tracker.animal
+        elif self.animal_id and not self.tracker_id:
+            tracker, _ = MouseTrainingRecord.objects.get_or_create(animal=self.animal)
+            self.tracker = tracker
         update_fields = kwargs.get("update_fields")
-        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "training_date", "training_unit_range")):
+        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "tracker", "tracker_id", "training_date", "training_unit_range")):
             self.clean()
         super().save(*args, **kwargs)
 
@@ -105,8 +148,8 @@ class TrainingSession(BaseAsyncJobModel):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Training Session"
-        verbose_name_plural = "Training Sessions"
+        verbose_name = "Mouse Training Session"
+        verbose_name_plural = "Mouse Training Sessions"
         ordering = ["-training_date"]
 
     def __str__(self):
@@ -128,7 +171,7 @@ class MouseBodyWeight(models.Model):
 
     class Meta:
         verbose_name = "Mouse Body Weight Record"
-        verbose_name_plural = "Mice Body Weight Records"
+        verbose_name_plural = "Mouse Body Weight Records"
         ordering = ["animal__animal_id"]
 
     def __str__(self):
@@ -194,8 +237,8 @@ class BodyWeightEntry(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Body Weight Entry"
-        verbose_name_plural = "Body Weight Entries"
+        verbose_name = "Mouse Body Weight Entry"
+        verbose_name_plural = "Mouse Body Weight Entries"
         ordering = ["date"]
 
     def __str__(self):
@@ -237,8 +280,9 @@ class BodyWeightEntry(models.Model):
 class TrackChanges(models.Model):
 
     class CategoryChoices(models.TextChoices):
-        TRAINING_SESSION = "training_session", "Training Session"
+        TRAINING_SESSION = "training_session", "Mouse Training Session"
         MOUSE_BODY_WEIGHT = "mouse_body_weight", "Mouse Body Weight Record"
+        MOUSE_TRAINING = "mouse_training", "Mouse Training Record"
 
     class ActionChoices(models.TextChoices):
         CREATED = "+", "Created"

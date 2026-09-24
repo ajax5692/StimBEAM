@@ -64,9 +64,10 @@ def get_user_initials(user_or_username: Any) -> str:
     if len(parts) == 1:
         from animals_metadata.models import Animal
 
-        for choice_val, choice_label in Animal.OwnerChoices.choices:
-            if parts[0].lower() in choice_label.lower():
-                return choice_val
+        if hasattr(Animal, "OwnerChoices"):
+            for choice_val, choice_label in Animal.OwnerChoices.choices:
+                if parts[0].lower() in choice_label.lower():
+                    return choice_val
 
         return parts[0][:2].upper()
 
