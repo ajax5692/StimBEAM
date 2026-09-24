@@ -237,7 +237,6 @@ class TrainingSessionInline(admin.TabularInline):
     model = TrainingSession
     fk_name = "tracker"
     extra = 0
-    can_delete = False
     fields = (
         "training_date",
         "bpod_file_path",
@@ -246,7 +245,6 @@ class TrainingSessionInline(admin.TabularInline):
         "display_d_prime",
         "display_performance",
         "display_lick_traces_link",
-        "display_delete_action",
         "notes",
     )
     readonly_fields = (
@@ -254,7 +252,6 @@ class TrainingSessionInline(admin.TabularInline):
         "display_d_prime",
         "display_performance",
         "display_lick_traces_link",
-        "display_delete_action",
     )
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -352,32 +349,6 @@ class TrainingSessionInline(admin.TabularInline):
             url,
         )
 
-    @admin.display(description="Delete")
-    def display_delete_action(self, obj):
-        if not obj or not obj.pk:
-            return "-"
-        record_id = obj.tracker_id or (
-            obj.animal.training_record.id
-            if (obj.animal and hasattr(obj.animal, "training_record"))
-            else None
-        )
-        if not record_id:
-            return "-"
-        delete_url = reverse("admin:training_delete_session", args=[record_id, obj.pk])
-        date_str = (
-            obj.training_date.strftime("%Y-%m-%d")
-            if obj.training_date
-            else f"#{obj.pk}"
-        )
-        return format_html(
-            '<a href="{}" onclick="return confirm(\'Are you sure you want to delete the training session for {}? This cannot be undone.\');" '
-            'class="button" style="background: #dc2626; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">'
-            '<span>🗑️</span><span>Delete</span>'
-            '</a>',
-            delete_url,
-            date_str,
-        )
-
 
 @admin.register(MouseTrainingRecord)
 class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
@@ -416,8 +387,8 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
             None,
             {
                 "fields": (
-                    "animal",
                     (
+                        "animal",
                         "get_owner_display",
                         "notes",
                     ),
@@ -434,8 +405,8 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
         models.TextField: {
             "widget": forms.Textarea(
                 attrs={
-                    "rows": 2,
-                    "style": "width: 100%; min-width: 320px; max-width: 600px; resize: vertical;",
+                    "rows": 1,
+                    "style": "height: 36px; width: 100%; min-width: 250px; max-width: 450px; resize: vertical;",
                     "placeholder": "Notes...",
                 }
             ),
@@ -459,9 +430,9 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="Owner")
     def get_owner_display(self, obj):
-        if obj and obj.animal:
-            owner_name = obj.animal.owner.first_name if (obj.animal.owner and obj.animal.owner.first_name) else (obj.animal.owner.username if obj.animal.owner else "None")
-            return f"{owner_name} ({obj.animal.owner})"
+        if obj and obj.animal and obj.animal.owner:
+            owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+            return f"{owner_name} ({obj.animal.owner.username})"
         return "-"
 
     @admin.display(description="Total Sessions")
@@ -473,7 +444,7 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
         latest = obj.sessions.order_by("-training_date", "-id").first()
         return latest.training_date if latest else "-"
 
-    @admin.display(description="Latest d'")
+    @admin.display(description="LATEST d'")
     def get_latest_d_prime(self, obj):
         latest = obj.sessions.filter(status=TrainingSession.StatusChoices.COMPLETED).order_by("-training_date", "-id").first()
         if latest and latest.metrics_json and "d_prime" in latest.metrics_json:
@@ -497,6 +468,8 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
                     instance.animal = form.instance.animal
                 instance.tracker = form.instance
             instance.save()
+        for deleted_obj in formset.deleted_objects:
+            deleted_obj.delete()
         formset.save_m2m()
 
     def response_add(self, request, obj, post_url_continue=None):
@@ -515,12 +488,6 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
         context["subtitle"] = None
         return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
-    def has_delete_permission(self, request, obj=None):
-        """
-        Prevent accidental deletion of the entire mouse training record container
-        and all associated sessions.
-        """
-        return False
 
     def get_urls(self):
         urls = super().get_urls()
@@ -587,7 +554,7 @@ class BodyWeightEntryInline(admin.TabularInline):
 class MouseBodyWeightAdmin(SimpleHistoryAdmin):
     change_form_template = "admin/training_metadata/mousebodyweight/change_form.html"
     inlines = [BodyWeightEntryInline]
-    list_select_related = ("animal",)
+    list_select_related = ("animal", "animal__owner")
 
     list_display = (
         "get_animal_id",
@@ -603,7 +570,9 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
 
     search_fields = (
         "animal__animal_id",
-        "animal__owner",
+        "animal__owner__username",
+        "animal__owner__first_name",
+        "animal__owner__last_name",
     )
 
     ordering = (
@@ -638,13 +607,15 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="Owner", ordering="animal__owner")
     def get_owner(self, obj):
-        return obj.animal.owner if obj.animal else "-"
+        if obj.animal and obj.animal.owner:
+            return obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+        return "-"
 
     @admin.display(description="Owner")
     def get_owner_display(self, obj):
-        if obj and obj.animal:
-            owner_label = obj.animal.get_owner_display() if hasattr(obj.animal, "get_owner_display") else obj.animal.owner
-            return f"{owner_label} ({obj.animal.owner})"
+        if obj and obj.animal and obj.animal.owner:
+            owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+            return f"{owner_name} ({obj.animal.owner.username})"
         return "-"
     
     

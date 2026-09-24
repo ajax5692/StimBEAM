@@ -429,6 +429,56 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.client = Client()
         self.client.login(username="admin", password="password123")
 
+    def test_navigation_dropdown_order_and_mice_options(self):
+        bw_record = MouseBodyWeight.objects.create(animal=self.animal)
+        trn_record = MouseTrainingRecord.objects.create(animal=self.animal)
+
+        response = self.client.get(reverse("admin:index"))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+
+        bw_pos = content.find("Mouse Body Weight Records")
+        trn_pos = content.find("Mouse Training Records")
+        self.assertNotEqual(bw_pos, -1)
+        self.assertNotEqual(trn_pos, -1)
+        self.assertLess(bw_pos, trn_pos)
+
+        bw_mouse_link = f"/admin/training_metadata/mousebodyweight/{bw_record.pk}/change/"
+        trn_mouse_link = f"/admin/training_metadata/mousetrainingrecord/{trn_record.pk}/change/"
+        self.assertContains(response, bw_mouse_link)
+        self.assertContains(response, trn_mouse_link)
+
+    def test_owner_first_name_harmonized_across_training_and_body_weight(self):
+        self.admin_user.first_name = "Alex"
+        self.admin_user.save()
+
+        bw_record = MouseBodyWeight.objects.create(animal=self.animal)
+        trn_record = MouseTrainingRecord.objects.create(animal=self.animal)
+
+        # Body weight changelist
+        bw_cl_url = reverse("admin:training_metadata_mousebodyweight_changelist")
+        bw_resp = self.client.get(bw_cl_url)
+        self.assertEqual(bw_resp.status_code, 200)
+        self.assertContains(bw_resp, "Alex")
+
+        # Training record changelist
+        trn_cl_url = reverse("admin:training_metadata_mousetrainingrecord_changelist")
+        trn_resp = self.client.get(trn_cl_url)
+        self.assertEqual(trn_resp.status_code, 200)
+        self.assertContains(trn_resp, "Alex")
+
+        # Body weight changeform
+        bw_cf_url = reverse("admin:training_metadata_mousebodyweight_change", args=[bw_record.pk])
+        bw_cf_resp = self.client.get(bw_cf_url)
+        self.assertEqual(bw_cf_resp.status_code, 200)
+        self.assertContains(bw_cf_resp, "Alex (admin)")
+
+        # Training record changeform
+        trn_cf_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[trn_record.pk])
+        trn_cf_resp = self.client.get(trn_cf_url)
+        self.assertEqual(trn_cf_resp.status_code, 200)
+        self.assertContains(trn_cf_resp, "Alex (admin)")
+
     def test_mousetrainingrecord_changelist_and_change_views(self):
         session = TrainingSession.objects.create(
             animal=self.animal,
@@ -446,6 +496,8 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "TRN02")
         self.assertContains(response, "1.75")
+        self.assertContains(response, 'name="action"')
+        self.assertContains(response, "action-select")
 
         # Change form
         change_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[record.pk])
@@ -487,7 +539,7 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertEqual(created_session.bpod_file_path, "/data/inline_file.mat")
         self.assertEqual(created_session.training_unit_range, "20:30")
 
-    def test_delete_individual_training_session_view(self):
+    def test_delete_individual_training_session_via_checkbox(self):
         session1 = TrainingSession.objects.create(
             animal=self.animal,
             training_date=timezone.now().date(),
@@ -503,26 +555,58 @@ class MouseTrainingRecordAdminTest(TestCase):
         record = session1.tracker
         self.assertEqual(record.sessions.count(), 2)
 
-        # Check that change form renders individual Delete button for session1
+        # Check that change form renders Delete? checkbox column matching BodyWeightEntryInline
         change_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[record.pk])
         resp = self.client.get(change_url)
         self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Delete?")
+        self.assertContains(resp, 'name="sessions-0-DELETE"')
+        self.assertContains(resp, 'name="sessions-1-DELETE"')
+        inline_sessions = list(record.sessions.all())
+        target_session = inline_sessions[0]
+        surviving_session = inline_sessions[1]
+
+        post_data = {
+            "animal": self.animal.pk,
+            "notes": "",
+            "sessions-TOTAL_FORMS": "2",
+            "sessions-INITIAL_FORMS": "2",
+            "sessions-MIN_NUM_FORMS": "0",
+            "sessions-MAX_NUM_FORMS": "1000",
+            "sessions-0-id": str(inline_sessions[0].pk),
+            "sessions-0-tracker": str(record.pk),
+            "sessions-0-training_date": str(inline_sessions[0].training_date),
+            "sessions-0-bpod_file_path": inline_sessions[0].bpod_file_path,
+            "sessions-0-training_unit_range": inline_sessions[0].training_unit_range,
+            "sessions-0-DELETE": "on",
+            "sessions-1-id": str(inline_sessions[1].pk),
+            "sessions-1-tracker": str(record.pk),
+            "sessions-1-training_date": str(inline_sessions[1].training_date),
+            "sessions-1-bpod_file_path": inline_sessions[1].bpod_file_path,
+            "sessions-1-training_unit_range": inline_sessions[1].training_unit_range,
+            "_save": "Save",
+        }
+        del_resp = self.client.post(change_url, post_data, follow=True)
+        self.assertEqual(del_resp.status_code, 200)
+
+        # Assert target session was deleted and surviving session remains
+        self.assertFalse(TrainingSession.objects.filter(pk=target_session.pk).exists())
+        self.assertTrue(TrainingSession.objects.filter(pk=surviving_session.pk).exists())
+        self.assertEqual(record.sessions.count(), 1)
+        self.assertTrue(MouseTrainingRecord.objects.filter(pk=record.pk).exists())
+
+    def test_delete_individual_training_session_direct_view(self):
+        session1 = TrainingSession.objects.create(
+            animal=self.animal,
+            training_date=timezone.now().date(),
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="1:10",
+        )
+        record = session1.tracker
         delete_url = reverse("admin:training_delete_session", args=[record.pk, session1.pk])
-        self.assertContains(resp, delete_url)
-        self.assertContains(resp, "Delete")
-
-        # Ensure parent delete button is suppressed
-        self.assertNotContains(resp, f'href="/admin/training_metadata/mousetrainingrecord/{record.pk}/delete/"')
-
-        # Execute single-session deletion
         del_resp = self.client.get(delete_url, follow=True)
         self.assertEqual(del_resp.status_code, 200)
         self.assertContains(del_resp, "deleted successfully")
-
-        # Session 1 is deleted, Session 2 remains intact
         self.assertFalse(TrainingSession.objects.filter(pk=session1.pk).exists())
-        self.assertTrue(TrainingSession.objects.filter(pk=session2.pk).exists())
-        self.assertEqual(record.sessions.count(), 1)
-        self.assertTrue(MouseTrainingRecord.objects.filter(pk=record.pk).exists())
 
 

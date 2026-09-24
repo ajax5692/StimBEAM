@@ -372,6 +372,17 @@
   color: var(--accent, #60a5fa);
 }
 
+.pstim-submenu-dropdown .pstim-dropdown-submenu:hover > .pstim-submenu-trigger {
+  background: var(--darkened-bg);
+  color: var(--accent, #60a5fa) !important;
+}
+
+.pstim-submenu-dropdown.pstim-scrollable {
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /*
    * Allow dropdowns to extend below the navigation bar.
    * Horizontal scrolling remains available if the app list
@@ -1337,57 +1348,110 @@ body.app-training_metadata.model-trainingsession.change-list
 }
 
 /* =========================================================
-     MICE BODY WEIGHT RECORDS TABLE — MAIN LIST
+     TRAINING METADATA TABLES — HARMONIZED MAIN LISTS
      ========================================================= */
 
-/* Animal ID*/
+/* Animal ID — Harmonized across Body Weight and Training Records */
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_animal_id,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
+  td.field-get_animal_id,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  th.column-get_animal_id,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
   td.field-get_animal_id {
-  width: 10% !important;
+  width: 14% !important;
+  min-width: 120px !important;
 }
 
-/* Owner*/
+/* Owner — Harmonized across Body Weight and Training Records */
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_owner,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
+  td.field-get_owner,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  th.column-get_owner,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
   td.field-get_owner {
-  width: 10% !important;
+  width: 18% !important;
+  min-width: 150px !important;
 }
 
-/* Water_restriction_start_date*/
+/* Last Training Day — Harmonized across Body Weight and Training Records */
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  th.column-get_latest_training_date,
+body.app-training_metadata.model-mousebodyweight.change-list
+  #result_list
+  td.column-get_latest_training_date,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  th.column-get_latest_training_date,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  td.field-get_latest_training_date {
+  width: 16% !important;
+  min-width: 140px !important;
+}
+
+/* Body Weight Record specific columns */
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-water_restriction_start_date,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.column-water_restriction_start_date {
-  width: 20% !important;
+  width: 26% !important;
+  min-width: 180px !important;
 }
 
-/* % Body Wt. From Start*/
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_latest_percent_body_weight,
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   td.column-get_latest_percent_body_weight {
-  width: 100px !important;
+  width: 22% !important;
+  min-width: 150px !important;
 }
 
-/* Last training day*/
-body.app-training_metadata.model-mousebodyweight.change-list
+/* Training Record specific columns */
+body.app-training_metadata.model-mousetrainingrecord.change-list
   #result_list
-  th.column-get_latest_training_date,
-body.app-training_metadata.model-mousebodyweight.change-list
+  th.column-get_total_sessions,
+body.app-training_metadata.model-mousetrainingrecord.change-list
   #result_list
-  td.column-get_latest_training_date {
-  width: 100px !important;
+  td.field-get_total_sessions {
+  width: 14% !important;
+  min-width: 110px !important;
+}
+
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  th.column-get_latest_d_prime,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  td.field-get_latest_d_prime {
+  width: 12% !important;
+  min-width: 90px !important;
+}
+
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  th.column-get_pipeline_stage,
+body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  td.field-get_pipeline_stage {
+  width: 22% !important;
+  min-width: 140px !important;
 }
 
 /* =========================================================
@@ -1492,6 +1556,131 @@ body.app-training_metadata.model-mousebodyweight
   max-height: 80px !important;
   padding: 4px 8px !important;
   resize: vertical !important;
+}
+
+/* =========================================================
+     MOUSE TRAINING SESSIONS — TABULAR INLINE TABLE
+     ========================================================= */
+
+body.app-training_metadata.model-mousetrainingrecord .inline-group {
+  margin-top: 10px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  thead
+  th {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord .inline-related table td {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  vertical-align: middle !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-training_date,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-training_date {
+  width: 170px !important;
+  min-width: 150px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-bpod_file_path,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-bpod_file_path {
+  min-width: 240px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-training_unit_range,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-training_unit_range {
+  width: 140px !important;
+  min-width: 120px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-display_status,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-display_status {
+  width: 120px !important;
+  min-width: 110px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-display_d_prime,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-display_d_prime {
+  width: 80px !important;
+  min-width: 70px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-display_performance,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-display_performance {
+  width: 180px !important;
+  min-width: 160px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-display_lick_traces_link,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-display_lick_traces_link {
+  width: 130px !important;
+  min-width: 120px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.column-notes,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-notes {
+  width: 250px !important;
+  min-width: 160px !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  th.delete,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.delete {
+  width: 60px !important;
+  text-align: center !important;
+}
+
+#result_list th.column-get_latest_d_prime,
+#result_list th.column-get_latest_d_prime a,
+#result_list th.column-get_latest_d_prime .text {
+  text-transform: none !important;
 }
 
 /* =========================================================

@@ -138,8 +138,40 @@
           </a>
           <!-- Second Level Flyout: Training Models -->
           <div class="pstim-submenu-dropdown">
-            <a href="/admin/training_metadata/mousetrainingrecord/"> Mouse Training Records </a>
-            <a href="/admin/training_metadata/mousebodyweight/"> Mouse Body Weight Records </a>
+            <!-- Mouse Body Weight Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/training_metadata/mousebodyweight/" class="pstim-submenu-trigger">
+                Mouse Body Weight Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Body Weight Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/training_metadata/mousebodyweight/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Body Weight Records</a>
+                {% for record in nav_body_weight_records %}
+                  <a href="/admin/training_metadata/mousebodyweight/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Mouse Training Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/training_metadata/mousetrainingrecord/" class="pstim-submenu-trigger">
+                Mouse Training Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Training Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/training_metadata/mousetrainingrecord/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Training Records</a>
+                {% for record in nav_training_records %}
+                  <a href="/admin/training_metadata/mousetrainingrecord/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
             <a href="/admin/training_metadata/trackchanges/"> Track Changes </a>
           </div>
         </div>
@@ -384,6 +416,10 @@
         const activeEl = document.activeElement;
         if (activeEl && sessionsGroup.contains(activeEl)) return;
 
+        // If the user has checked any checkbox (e.g. Delete?), do not interrupt
+        const checkedBoxes = sessionsGroup.querySelectorAll('input[type="checkbox"]:checked');
+        if (checkedBoxes.length > 0) return;
+
         if (!hasActiveTrainingJobs()) return;
 
         inlinePollInProgress = true;
@@ -414,7 +450,6 @@
                 ".field-display_d_prime",
                 ".field-display_performance",
                 ".field-display_lick_traces_link",
-                ".field-display_delete_action",
               ];
               currentRows.forEach((row, idx) => {
                 const newRow = newRows[idx];
