@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -5,8 +8,9 @@ from simple_history.models import HistoricalRecords
 
 from animals_metadata.utils import (
     BaseAsyncJobModel,
+    is_same_bpod_file,
+    parse_unit_ranges,
     validate_measurement_unit_ranges,
-    validate_non_overlapping_session_units,
 )
 
 
@@ -105,17 +109,33 @@ class TrainingSession(BaseAsyncJobModel):
         if hasattr(self, "tracker") and self.tracker and not (hasattr(self, "animal") and self.animal):
             self.animal = self.tracker.animal
         super().clean()
-        if hasattr(self, "animal_id") and self.animal_id and self.training_date and self.training_unit_range:
-            validate_non_overlapping_session_units(
-                model_class=TrainingSession,
+        if (
+            hasattr(self, "animal_id")
+            and self.animal_id
+            and self.training_date
+            and self.bpod_file_path
+            and self.training_unit_range
+        ):
+            current_units = parse_unit_ranges(self.training_unit_range)
+            existing_sessions = TrainingSession.objects.filter(
                 animal=self.animal,
-                session_date=self.training_date,
-                unit_range_str=self.training_unit_range,
-                date_field_name="training_date",
-                unit_field_name="training_unit_range",
-                exclude_pk=self.pk,
-                model_name="training session",
+                training_date=self.training_date,
             )
+            if self.pk:
+                existing_sessions = existing_sessions.exclude(pk=self.pk)
+
+            for other in existing_sessions:
+                if is_same_bpod_file(self.bpod_file_path, other.bpod_file_path):
+                    other_units = parse_unit_ranges(other.training_unit_range)
+                    if current_units == other_units:
+                        filename = Path(self.bpod_file_path).name or self.bpod_file_path
+                        raise ValidationError({
+                            "training_unit_range": (
+                                f"The BPod file '{filename}' is already uploaded for animal '{self.animal}' "
+                                f"on {self.training_date} with the same unit numbers ({self.training_unit_range}). "
+                                f"Uploading the same file with identical unit numbers is not allowed."
+                            )
+                        })
 
     def save(self, *args, **kwargs):
         if self.tracker_id and not self.animal_id:
@@ -124,7 +144,18 @@ class TrainingSession(BaseAsyncJobModel):
             tracker, _ = MouseTrainingRecord.objects.get_or_create(animal=self.animal)
             self.tracker = tracker
         update_fields = kwargs.get("update_fields")
-        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "tracker", "tracker_id", "training_date", "training_unit_range")):
+        if not update_fields or any(
+            f in update_fields
+            for f in (
+                "animal",
+                "animal_id",
+                "tracker",
+                "tracker_id",
+                "training_date",
+                "bpod_file_path",
+                "training_unit_range",
+            )
+        ):
             self.clean()
         super().save(*args, **kwargs)
 

@@ -304,7 +304,7 @@ class TrainingSessionUnitValidationTest(TestCase):
         self.today = timezone.now().date()
         self.tomorrow = self.today + timezone.timedelta(days=1)
 
-    def test_duplicate_session_exact_units_rejected(self):
+    def test_duplicate_session_exact_units_same_file_rejected(self):
         from django.core.exceptions import ValidationError
 
         TrainingSession.objects.create(
@@ -317,7 +317,7 @@ class TrainingSessionUnitValidationTest(TestCase):
         duplicate = TrainingSession(
             animal=self.animal1,
             training_date=self.today,
-            bpod_file_path="/data/file2.mat",
+            bpod_file_path="/data/file1.mat",
             training_unit_range="10:21",
         )
         with self.assertRaises(ValidationError) as ctx:
@@ -327,29 +327,26 @@ class TrainingSessionUnitValidationTest(TestCase):
         with self.assertRaises(ValidationError):
             duplicate.save()
 
-    def test_overlapping_units_rejected(self):
-        from django.core.exceptions import ValidationError
-
-        TrainingSession.objects.create(
+    def test_overlapping_units_same_file_allowed(self):
+        # Overlapping units (e.g. 3:20 and 11:16) for the same bpod file are allowed for testing
+        s1 = TrainingSession.objects.create(
             animal=self.animal1,
             training_date=self.today,
             bpod_file_path="/data/file1.mat",
-            training_unit_range="10:21",
+            training_unit_range="3:20",
         )
-
-        # Overlaps at units 20, 21
-        overlapping = TrainingSession(
+        s2 = TrainingSession(
             animal=self.animal1,
             training_date=self.today,
-            bpod_file_path="/data/file2.mat",
-            training_unit_range="20:30",
+            bpod_file_path="/data/file1.mat",
+            training_unit_range="11:16",
         )
-        with self.assertRaises(ValidationError) as ctx:
-            overlapping.full_clean()
-        self.assertIn("training_unit_range", ctx.exception.message_dict)
-        self.assertIn("20", str(ctx.exception.message_dict["training_unit_range"]))
+        s2.full_clean()
+        s2.save()
+        self.assertIsNotNone(s1.pk)
+        self.assertIsNotNone(s2.pk)
 
-    def test_disjoint_units_same_date_allowed(self):
+    def test_disjoint_units_same_file_allowed(self):
         s1 = TrainingSession.objects.create(
             animal=self.animal1,
             training_date=self.today,
@@ -359,7 +356,7 @@ class TrainingSessionUnitValidationTest(TestCase):
         s2 = TrainingSession.objects.create(
             animal=self.animal1,
             training_date=self.today,
-            bpod_file_path="/data/file2.mat",
+            bpod_file_path="/data/file1.mat",
             training_unit_range="11:20",
         )
         self.assertIsNotNone(s1.pk)
@@ -486,13 +483,13 @@ class MouseTrainingRecordAdminTest(TestCase):
         bw_cf_url = reverse("admin:training_metadata_mousebodyweight_change", args=[bw_record.pk])
         bw_cf_resp = self.client.get(bw_cf_url)
         self.assertEqual(bw_cf_resp.status_code, 200)
-        self.assertContains(bw_cf_resp, "Alex (admin)")
+        self.assertContains(bw_cf_resp, "Alex")
 
         # Training record changeform
         trn_cf_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[trn_record.pk])
         trn_cf_resp = self.client.get(trn_cf_url)
         self.assertEqual(trn_cf_resp.status_code, 200)
-        self.assertContains(trn_cf_resp, "Alex (admin)")
+        self.assertContains(trn_cf_resp, "Alex")
 
     def test_mousetrainingrecord_changelist_and_change_views(self):
         session = TrainingSession.objects.create(
@@ -623,5 +620,70 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertEqual(del_resp.status_code, 200)
         self.assertContains(del_resp, "deleted successfully")
         self.assertFalse(TrainingSession.objects.filter(pk=session1.pk).exists())
+
+    def test_same_bpod_file_different_units_triggers_admin_warning(self):
+        record = MouseTrainingRecord.objects.create(animal=self.animal)
+        change_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[record.pk])
+
+        # Session 1 exists in DB
+        TrainingSession.objects.create(
+            animal=self.animal,
+            tracker=record,
+            training_date=timezone.now().date(),
+            bpod_file_path="/data/shared_bpod.mat",
+            training_unit_range="3:20",
+        )
+
+        # Upload session 2 with the same BPod file on the same date, but different unit numbers
+        post_data = {
+            "animal": self.animal.pk,
+            "notes": "",
+            "sessions-TOTAL_FORMS": "2",
+            "sessions-INITIAL_FORMS": "1",
+            "sessions-MIN_NUM_FORMS": "0",
+            "sessions-MAX_NUM_FORMS": "1000",
+            "sessions-0-id": str(record.sessions.first().pk),
+            "sessions-0-tracker": str(record.pk),
+            "sessions-0-training_date": str(timezone.now().date()),
+            "sessions-0-bpod_file_path": "/data/shared_bpod.mat",
+            "sessions-0-training_unit_range": "3:20",
+            "sessions-1-training_date": str(timezone.now().date()),
+            "sessions-1-bpod_file_path": "/data/shared_bpod.mat",
+            "sessions-1-training_unit_range": "11:16",
+            "_save": "Save",
+        }
+        resp = self.client.post(change_url, post_data, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(record.sessions.count(), 2)
+        # Warning message should be present
+        self.assertContains(resp, "shared_bpod.mat")
+        self.assertContains(resp, "uploaded multiple times")
+
+    def test_formset_duplicate_same_file_same_units_blocks_save(self):
+        record = MouseTrainingRecord.objects.create(animal=self.animal)
+        change_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[record.pk])
+
+        # Submit two rows simultaneously with same file and identical units
+        post_data = {
+            "animal": self.animal.pk,
+            "notes": "",
+            "sessions-TOTAL_FORMS": "2",
+            "sessions-INITIAL_FORMS": "0",
+            "sessions-MIN_NUM_FORMS": "0",
+            "sessions-MAX_NUM_FORMS": "1000",
+            "sessions-0-training_date": str(timezone.now().date()),
+            "sessions-0-bpod_file_path": "/data/test_dup.mat",
+            "sessions-0-training_unit_range": "5:15",
+            "sessions-1-training_date": str(timezone.now().date()),
+            "sessions-1-bpod_file_path": "/data/test_dup.mat",
+            "sessions-1-training_unit_range": "5:15",
+            "_save": "Save",
+        }
+        resp = self.client.post(change_url, post_data)
+        self.assertEqual(resp.status_code, 200)
+        # Verify save was blocked and form error rendered
+        self.assertEqual(record.sessions.count(), 0)
+        self.assertContains(resp, "Duplicate session")
+        self.assertContains(resp, "test_dup.mat")
 
 

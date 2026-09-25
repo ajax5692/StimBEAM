@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import re
 from typing import Any, List, Optional, Set, Tuple, Union
 
@@ -395,6 +397,26 @@ def parse_unit_ranges(unit_range_input: Optional[Union[str, List[int], range, Se
                 continue
 
     return sorted(list(units)) if units else None
+
+
+def is_same_bpod_file(path1: Any, path2: Any) -> bool:
+    """
+    Check if two BPod file paths or names refer to the same BPod data file.
+    Normalizes path slashes, case-insensitivity on Windows, and compares file basenames.
+    """
+    if not path1 or not path2:
+        return False
+    p1 = str(path1).strip()
+    p2 = str(path2).strip()
+    if not p1 or not p2:
+        return False
+    if os.path.normcase(os.path.normpath(p1)) == os.path.normcase(os.path.normpath(p2)):
+        return True
+    name1 = Path(p1).name.lower()
+    name2 = Path(p2).name.lower()
+    if name1 and name2 and name1 == name2:
+        return True
+    return False
 
 
 def record_track_change(

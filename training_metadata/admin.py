@@ -13,6 +13,8 @@ from simple_history.admin import SimpleHistoryAdmin
 from animals_metadata.utils import (
     BaseTrackChangesAdmin,
     get_user_initials,
+    is_same_bpod_file,
+    parse_unit_ranges,
     render_copyable_path_widget,
 )
 
@@ -159,6 +161,29 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
         return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.animal_id and obj.training_date and obj.bpod_file_path:
+            other_sessions = TrainingSession.objects.filter(
+                animal=obj.animal,
+                training_date=obj.training_date,
+            ).exclude(pk=obj.pk)
+            for other in other_sessions:
+                if is_same_bpod_file(obj.bpod_file_path, other.bpod_file_path):
+                    filename = Path(obj.bpod_file_path).name or obj.bpod_file_path
+                    messages.warning(
+                        request,
+                        format_html(
+                            '<strong>Notice:</strong> The BPod file <code>{}</code> is uploaded multiple times on <strong>{}</strong> for animal <strong>{}</strong> with different unit ranges (<code>{}</code> and <code>{}</code>).',
+                            filename,
+                            obj.training_date,
+                            obj.animal.animal_id,
+                            obj.training_unit_range,
+                            other.training_unit_range,
+                        ),
+                    )
+                    break
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -233,8 +258,45 @@ class CopyablePathInput(forms.TextInput):
         )
 
 
+class TrainingSessionInlineFormSet(forms.BaseInlineFormSet):
+    """
+    Formset validator checking intra-submission collisions between multiple forms
+    submitted simultaneously in the inline table.
+    """
+    def clean(self):
+        super().clean()
+        valid_forms = []
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if self._should_delete_form(form):
+                continue
+            date = form.cleaned_data.get("training_date")
+            bpod_file = form.cleaned_data.get("bpod_file_path")
+            unit_range = form.cleaned_data.get("training_unit_range")
+            if date and bpod_file and unit_range:
+                valid_forms.append((form, date, bpod_file, unit_range))
+
+        # Check for duplicate same BPod file with same unit numbers within submitted forms
+        for i in range(len(valid_forms)):
+            form_i, date_i, file_i, units_i = valid_forms[i]
+            parsed_i = parse_unit_ranges(units_i)
+            for j in range(i + 1, len(valid_forms)):
+                form_j, date_j, file_j, units_j = valid_forms[j]
+                if date_i == date_j and is_same_bpod_file(file_i, file_j):
+                    parsed_j = parse_unit_ranges(units_j)
+                    if parsed_i == parsed_j:
+                        filename = Path(file_j).name or file_j
+                        err_msg = (
+                            f"Duplicate session: The BPod file '{filename}' cannot be uploaded multiple times "
+                            f"on {date_j} with identical unit numbers ({units_j})."
+                        )
+                        form_j.add_error("training_unit_range", err_msg)
+
+
 class TrainingSessionInline(admin.TabularInline):
     model = TrainingSession
+    formset = TrainingSessionInlineFormSet
     fk_name = "tracker"
     extra = 0
     fields = (
@@ -462,15 +524,46 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
+        saved_instances = []
         for instance in instances:
             if isinstance(instance, TrainingSession):
                 if not instance.animal_id and form.instance.animal_id:
                     instance.animal = form.instance.animal
                 instance.tracker = form.instance
             instance.save()
+            saved_instances.append(instance)
         for deleted_obj in formset.deleted_objects:
             deleted_obj.delete()
         formset.save_m2m()
+
+        # Check all sessions for this record: warn every time the record is saved if any share BPod file on the same date
+        animal = form.instance.animal if hasattr(form.instance, "animal") else None
+        all_sessions = list(TrainingSession.objects.filter(animal=animal)) if animal else []
+        warned_pairs = set()
+        for i in range(len(all_sessions)):
+            sess_i = all_sessions[i]
+            if not sess_i.training_date or not sess_i.bpod_file_path:
+                continue
+            for j in range(i + 1, len(all_sessions)):
+                sess_j = all_sessions[j]
+                if sess_i.training_date == sess_j.training_date and is_same_bpod_file(sess_i.bpod_file_path, sess_j.bpod_file_path):
+                    pair_key = tuple(sorted([sess_i.pk, sess_j.pk]))
+                    if pair_key in warned_pairs:
+                        continue
+                    warned_pairs.add(pair_key)
+                    filename = Path(sess_i.bpod_file_path).name or sess_i.bpod_file_path
+                    animal_id = form.instance.animal.animal_id if form.instance.animal else ""
+                    messages.warning(
+                        request,
+                        format_html(
+                            '<strong>Notice:</strong> The BPod file <code>{}</code> is uploaded multiple times on <strong>{}</strong> for animal <strong>{}</strong> with different unit ranges (<code>{}</code> and <code>{}</code>).',
+                            filename,
+                            sess_i.training_date,
+                            animal_id,
+                            sess_i.training_unit_range,
+                            sess_j.training_unit_range,
+                        ),
+                    )
 
     def response_add(self, request, obj, post_url_continue=None):
         if "_save" in request.POST:
@@ -615,7 +708,7 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
     def get_owner_display(self, obj):
         if obj and obj.animal and obj.animal.owner:
             owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
-            return f"{owner_name} ({obj.animal.owner.username})"
+            return f"{owner_name}"
         return "-"
     
     
