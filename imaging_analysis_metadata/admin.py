@@ -1,10 +1,18 @@
+import json
 from pathlib import Path
 
 from django import forms
 from django.contrib import admin
+from django.http import JsonResponse
+from django.urls import path
 from django.utils.html import format_html
 from simple_history.admin import SimpleHistoryAdmin
 
+from animals_metadata.utils import (
+    CopyablePathInput,
+    get_user_initials,
+    render_output_resource_row,
+)
 from imaging_metadata.models import ImagingSession
 
 from .models import AnalysisRun, TrackChanges
@@ -19,9 +27,20 @@ class AnalysisRunAdminForm(forms.ModelForm):
     imaging_session = ImagingSessionChoiceField(
         queryset=ImagingSession.objects.select_related("animal").all()
     )
+
     class Meta:
         model = AnalysisRun
         fields = "__all__"
+        widgets = {
+            "output_log_path": CopyablePathInput(
+                attrs={"class": "vTextField", "style": "width: 100%; max-width: 600px;"},
+                tooltip="Copy Log file path",
+            ),
+            "output_path": CopyablePathInput(
+                attrs={"class": "vTextField", "style": "width: 100%; max-width: 600px;"},
+                tooltip="Copy Suite2P output path",
+            ),
+        }
 
 @admin.register(AnalysisRun)
 class AnalysisRunAdmin(SimpleHistoryAdmin):
@@ -57,8 +76,6 @@ class AnalysisRunAdmin(SimpleHistoryAdmin):
         "frame_rate",
         "started_at",
         "completed_at",
-        "output_log_path",
-        "output_path",
         "error_message",
     )
 
@@ -132,131 +149,97 @@ class AnalysisRunAdmin(SimpleHistoryAdmin):
         # ---------------------------------------------------------
         if not log_path and output_path:
             output_dir = Path(output_path)
-
             old_log = output_dir / "pipeline_log.txt"
 
             if old_log.exists():
                 log_path = str(old_log)
-
             else:
                 run_logs = list(
                     output_dir.glob("*_runlog.txt")
                 )
-
                 if run_logs:
                     newest_log = max(
                         run_logs,
                         key=lambda path: path.stat().st_mtime,
                     )
-
                     log_path = str(newest_log)
 
-        log_text = log_path or "Not available"
-        output_text = output_path or "Not available"
+        log_row = render_output_resource_row(
+            run_id=obj.pk or 0,
+            field_name="output_log_path",
+            label="• Log:",
+            file_path=log_path,
+            copy_tooltip="Copy Log file path",
+            edit_tooltip="Edit Log file path",
+        )
+        suite2p_row = render_output_resource_row(
+            run_id=obj.pk or 0,
+            field_name="output_path",
+            label="• Suite2P:",
+            file_path=output_path,
+            copy_tooltip="Copy Suite2P output path",
+            edit_tooltip="Edit Suite2P output path",
+        )
 
         return format_html(
             '<div style="white-space: normal; min-width: 450px;">'
-
-                '<div style="display: grid; '
-                'grid-template-columns: max-content max-content 1fr; '
-                'column-gap: 6px; '
-                'align-items: start;">'
-
-                    '<button type="button" '
-                'class="pstim-copy-button" '
-                'data-copy-text="{}" '
-                'title="Copy MESC file path" '
-                'aria-label="Copy MESC file path">'
-
-                    '<svg '
-                    'width="16" '
-                    'height="16" '
-                    'viewBox="0 0 24 24" '
-                    'fill="none" '
-                    'stroke="currentColor" '
-                    'stroke-width="2" '
-                    'stroke-linecap="round" '
-                    'stroke-linejoin="round" '
-                    'aria-hidden="true">'
-
-                        '<rect '
-                        'x="8" '
-                        'y="8" '
-                        'width="12" '
-                        'height="12" '
-                        'rx="2">'
-                        '</rect>'
-
-                        '<path '
-                        'd="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2">'
-                        '</path>'
-
-                    '</svg>'
-
-                '</button>'
-
-                    '<strong>• Log:</strong>'
-
-                    '<span style="overflow-wrap: anywhere;">'
-                    '{}'
-                    '</span>'
-
-                '</div>'
-
-                '<div style="height: 8px;"></div>'
-
-                '<div style="display: grid; '
-                'grid-template-columns: max-content max-content 1fr; '
-                'column-gap: 6px; '
-                'align-items: start;">'
-
-                    '<button type="button" '
-                'class="pstim-copy-button" '
-                'data-copy-text="{}" '
-                'title="Copy MESC file path" '
-                'aria-label="Copy MESC file path">'
-
-                    '<svg '
-                    'width="16" '
-                    'height="16" '
-                    'viewBox="0 0 24 24" '
-                    'fill="none" '
-                    'stroke="currentColor" '
-                    'stroke-width="2" '
-                    'stroke-linecap="round" '
-                    'stroke-linejoin="round" '
-                    'aria-hidden="true">'
-
-                        '<rect '
-                        'x="8" '
-                        'y="8" '
-                        'width="12" '
-                        'height="12" '
-                        'rx="2">'
-                        '</rect>'
-
-                        '<path '
-                        'd="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2">'
-                        '</path>'
-
-                    '</svg>'
-
-                '</button>'
-
-                    '<strong>• Suite2P:</strong>'
-
-                    '<span style="overflow-wrap: anywhere;">'
-                    '{}'
-                    '</span>'
-
-                '</div>'
-
+            '{}'
+            '<div style="height: 8px;"></div>'
+            '{}'
             '</div>',
-            log_text,
-            log_text,
-            output_text,
-            output_text,
+            log_row,
+            suite2p_row,
         )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:run_id>/update-output-path/",
+                self.admin_site.admin_view(self.update_output_path_view),
+                name="imaging_analysis_metadata_analysisrun_update_output_path",
+            ),
+        ]
+        return custom_urls + urls
+
+    def update_output_path_view(self, request, run_id):
+        if request.method != "POST":
+            return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+        try:
+            run = AnalysisRun.objects.select_related("imaging_session__animal").get(pk=run_id)
+        except AnalysisRun.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "AnalysisRun not found"}, status=404)
+
+        if not self.has_change_permission(request, run):
+            return JsonResponse({"status": "error", "message": "Permission denied"}, status=403)
+
+        if request.content_type == "application/json":
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                data = {}
+            field = data.get("field")
+            value = data.get("value", "")
+        else:
+            field = request.POST.get("field")
+            value = request.POST.get("value", "")
+
+        if field not in ("output_log_path", "output_path"):
+            return JsonResponse({"status": "error", "message": "Invalid field specified"}, status=400)
+
+        value = (value or "").strip()
+        setattr(run, field, value)
+        run._history_user = request.user
+        run._change_reason = f"Updated {field} via Output Resource Path editor"
+        run.save(update_fields=[field])
+
+        return JsonResponse({
+            "status": "success",
+            "field": field,
+            "value": value,
+            "message": f"Successfully updated {field}",
+        })
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -270,9 +253,6 @@ class AnalysisRunAdmin(SimpleHistoryAdmin):
             elif obj.status == AnalysisRun.StatusChoices.FAILED:
                 session.analysis_performed = "N"
                 session.save(update_fields=["analysis_performed"])
-
-
-from animals_metadata.utils import get_user_initials
 
 
 @admin.register(TrackChanges)

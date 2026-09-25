@@ -2226,6 +2226,115 @@ body.model-trackchanges.change-list #result_list td:last-child {
 }
 
 /* =========================================================
+   EDIT PATH BUTTON & INLINE EDITOR
+   ========================================================= */
+
+.pstim-edit-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 18px !important;
+  height: 18px !important;
+
+  padding: 0 !important;
+  margin: 0 0 0 6px !important;
+
+  border: 0 !important;
+  background: transparent !important;
+
+  color: #38bdf8 !important;
+  cursor: pointer !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  border-radius: 3px !important;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease,
+    background-color 0.15s ease !important;
+}
+
+.pstim-edit-button svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+}
+
+.pstim-edit-button:hover {
+  color: #7dd3fc !important;
+  background-color: rgba(56, 189, 248, 0.12) !important;
+  transform: scale(1.1);
+}
+
+.pstim-edit-button:focus-visible {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 1px !important;
+}
+
+.pstim-resource-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.pstim-resource-input {
+  flex: 1 1 auto;
+  min-width: 160px;
+  height: 24px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  font-family: inherit !important;
+  color: var(--body-fg, #f8fafc) !important;
+  background: var(--darkened-bg, #0f172a) !important;
+  border: 1px solid #38bdf8 !important;
+  border-radius: 4px !important;
+  box-sizing: border-box !important;
+}
+
+.pstim-resource-input:focus {
+  outline: 2px solid #38bdf8 !important;
+  border-color: #38bdf8 !important;
+}
+
+.pstim-resource-save-btn,
+.pstim-resource-cancel-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease !important;
+}
+
+.pstim-resource-save-btn {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #4ade80 !important;
+}
+
+.pstim-resource-save-btn:hover {
+  background: rgba(34, 197, 94, 0.35) !important;
+  color: #86efac !important;
+}
+
+.pstim-resource-cancel-btn {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+}
+
+.pstim-resource-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+/* =========================================================
    COPY PATH TOAST
    ========================================================= */
 

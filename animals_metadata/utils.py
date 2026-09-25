@@ -218,6 +218,88 @@ def render_copyable_path_widget(
     )
 
 
+def render_output_resource_row(
+    run_id: int,
+    field_name: str,
+    label: str,
+    file_path: Optional[str],
+    copy_tooltip: str = "Copy file path",
+    edit_tooltip: str = "Edit file path",
+) -> SafeString:
+    """
+    Render an output resource row for AnalysisRun changelist with:
+      - Left-aligned copy button (.pstim-copy-button)
+      - Bold label (e.g. • Log: or • Suite2P:)
+      - File path text with a blue pencil edit button (.pstim-edit-button) at the end of the text
+      - Inline editor container (.pstim-resource-editor) with save and cancel buttons
+
+    Args:
+        run_id: The ID of the AnalysisRun instance.
+        field_name: Model field name ('output_log_path' or 'output_path').
+        label: Label string to display (e.g. '• Log:' or '• Suite2P:').
+        file_path: Current path string or None.
+        copy_tooltip: Tooltip for the copy button.
+        edit_tooltip: Tooltip for the edit pencil button.
+
+    Returns:
+        Escaped HTML string safely rendered in Django admin tables.
+    """
+    path_val = (file_path or "").strip()
+    display_text = path_val if path_val else "Not available"
+    update_url = f"/admin/imaging_analysis_metadata/analysisrun/{run_id}/update-output-path/"
+
+    return format_html(
+        '<div class="pstim-resource-row" data-run-id="{}" data-field="{}" data-update-url="{}" '
+        'style="display: grid; grid-template-columns: max-content max-content 1fr; column-gap: 6px; align-items: start;">'
+            '<button type="button" class="pstim-copy-button" data-copy-text="{}" title="{}" aria-label="{}">'
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                    '<rect x="8" y="8" width="12" height="12" rx="2"></rect>'
+                    '<path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>'
+                '</svg>'
+            '</button>'
+            '<strong>{}</strong>'
+            '<div>'
+                '<div class="pstim-resource-display" style="overflow-wrap: anywhere; word-break: break-all;">'
+                    '<span class="pstim-resource-text">{}</span>'
+                    '<button type="button" class="pstim-edit-button" title="{}" aria-label="{}" data-field="{}" data-current-path="{}">'
+                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                            '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>'
+                            '<path d="m15 5 4 4"></path>'
+                        '</svg>'
+                    '</button>'
+                '</div>'
+                '<div class="pstim-resource-editor" style="display: none; align-items: center; gap: 4px; width: 100%; margin-top: 2px;">'
+                    '<input type="text" class="pstim-resource-input" value="{}" placeholder="Enter file path..." />'
+                    '<button type="button" class="pstim-resource-save-btn" title="Save file path" aria-label="Save file path">'
+                        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+                            '<polyline points="20 6 9 17 4 12"></polyline>'
+                        '</svg>'
+                    '</button>'
+                    '<button type="button" class="pstim-resource-cancel-btn" title="Cancel edit" aria-label="Cancel edit">'
+                        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+                            '<line x1="18" y1="6" x2="6" y2="18"></line>'
+                            '<line x1="6" y1="6" x2="18" y2="18"></line>'
+                        '</svg>'
+                    '</button>'
+                '</div>'
+            '</div>'
+        '</div>',
+        run_id,
+        field_name,
+        update_url,
+        path_val,
+        copy_tooltip,
+        copy_tooltip,
+        label,
+        display_text,
+        edit_tooltip,
+        edit_tooltip,
+        field_name,
+        path_val,
+        path_val,
+    )
+
+
 class CopyablePathInput(forms.TextInput):
     """
     TextInput widget with an inline copy button on the left for file paths.

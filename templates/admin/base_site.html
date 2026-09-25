@@ -311,6 +311,7 @@
 
       try {
         await navigator.clipboard.writeText(pathToCopy);
+        copyToast.textContent = "Path copied!";
         copyToast.classList.add("show");
         clearTimeout(copyToastTimer);
         copyToastTimer = setTimeout(function () {
@@ -318,6 +319,185 @@
         }, 1500);
       } catch (error) {
         console.error("Could not copy path:", error);
+      }
+    });
+
+    /* =======================================================
+       EDIT OUTPUT RESOURCE PATH (ANALYSIS RUN)
+       ======================================================= */
+    function getPstimCsrfToken() {
+      const input = document.querySelector("input[name=csrfmiddlewaretoken]");
+      if (input && input.value) return input.value;
+      const match = document.cookie.match(/csrftoken=([^;]+)/);
+      return match ? match[1] : "";
+    }
+
+    function closeActiveResourceEditors(exceptEditor = null) {
+      document.querySelectorAll(".pstim-resource-editor").forEach(function (ed) {
+        if (ed !== exceptEditor && ed.style.display !== "none") {
+          const row = ed.closest(".pstim-resource-row");
+          const displayEl = row?.querySelector(".pstim-resource-display");
+          const inputEl = row?.querySelector(".pstim-resource-input");
+          const editBtn = row?.querySelector(".pstim-edit-button");
+          if (inputEl && editBtn) {
+            inputEl.value = editBtn.dataset.currentPath || "";
+          }
+          ed.style.display = "none";
+          if (displayEl) {
+            displayEl.style.display = "block";
+          }
+        }
+      });
+    }
+
+    async function saveResourcePath(row) {
+      if (!row) return;
+      const editorEl = row.querySelector(".pstim-resource-editor");
+      const displayEl = row.querySelector(".pstim-resource-display");
+      const textEl = row.querySelector(".pstim-resource-text");
+      const inputEl = row.querySelector(".pstim-resource-input");
+      const copyBtn = row.querySelector(".pstim-copy-button");
+      const editBtn = row.querySelector(".pstim-edit-button");
+      const saveBtn = row.querySelector(".pstim-resource-save-btn");
+
+      const updateUrl = row.dataset.updateUrl;
+      const field = row.dataset.field;
+      const newValue = inputEl ? inputEl.value.trim() : "";
+
+      if (!updateUrl) return;
+
+      if (saveBtn) saveBtn.disabled = true;
+      if (inputEl) inputEl.disabled = true;
+
+      try {
+        const response = await fetch(updateUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getPstimCsrfToken(),
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: JSON.stringify({
+            field: field,
+            value: newValue,
+          }),
+        });
+
+        const data = await response.json();
+        if (response.ok && data.status === "success") {
+          const savedVal = data.value || "";
+          if (textEl) {
+            textEl.textContent = savedVal ? savedVal : "Not available";
+          }
+          if (copyBtn) {
+            copyBtn.dataset.copyText = savedVal;
+          }
+          if (editBtn) {
+            editBtn.dataset.currentPath = savedVal;
+          }
+          if (inputEl) {
+            inputEl.value = savedVal;
+          }
+          if (editorEl) editorEl.style.display = "none";
+          if (displayEl) displayEl.style.display = "block";
+
+          copyToast.textContent = "Path updated!";
+          copyToast.classList.add("show");
+          clearTimeout(copyToastTimer);
+          copyToastTimer = setTimeout(function () {
+            copyToast.classList.remove("show");
+          }, 1500);
+        } else {
+          alert(data.message || "Failed to update file path.");
+        }
+      } catch (err) {
+        console.error("Error updating resource path:", err);
+        alert("Failed to update file path. Please check network connection.");
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+        if (inputEl) inputEl.disabled = false;
+      }
+    }
+
+    document.addEventListener("click", function (event) {
+      // 1. Edit button clicked
+      const editBtn = event.target.closest(".pstim-edit-button");
+      if (editBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        const row = editBtn.closest(".pstim-resource-row");
+        if (!row) return;
+
+        const displayEl = row.querySelector(".pstim-resource-display");
+        const editorEl = row.querySelector(".pstim-resource-editor");
+        const inputEl = row.querySelector(".pstim-resource-input");
+
+        if (editorEl) {
+          closeActiveResourceEditors(editorEl);
+          if (displayEl) displayEl.style.display = "none";
+          editorEl.style.display = "flex";
+          if (inputEl) {
+            inputEl.value = editBtn.dataset.currentPath || "";
+            inputEl.focus();
+            inputEl.select();
+          }
+        }
+        return;
+      }
+
+      // 2. Save button clicked
+      const saveBtn = event.target.closest(".pstim-resource-save-btn");
+      if (saveBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        const row = saveBtn.closest(".pstim-resource-row");
+        saveResourcePath(row);
+        return;
+      }
+
+      // 3. Cancel button clicked
+      const cancelBtn = event.target.closest(".pstim-resource-cancel-btn");
+      if (cancelBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        const row = cancelBtn.closest(".pstim-resource-row");
+        if (!row) return;
+
+        const displayEl = row.querySelector(".pstim-resource-display");
+        const editorEl = row.querySelector(".pstim-resource-editor");
+        const inputEl = row.querySelector(".pstim-resource-input");
+        const editButton = row.querySelector(".pstim-edit-button");
+
+        if (inputEl && editButton) {
+          inputEl.value = editButton.dataset.currentPath || "";
+        }
+        if (editorEl) editorEl.style.display = "none";
+        if (displayEl) displayEl.style.display = "block";
+        return;
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      const input = event.target.closest(".pstim-resource-input");
+      if (!input) return;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const row = input.closest(".pstim-resource-row");
+        saveResourcePath(row);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        const row = input.closest(".pstim-resource-row");
+        if (!row) return;
+        const displayEl = row.querySelector(".pstim-resource-display");
+        const editorEl = row.querySelector(".pstim-resource-editor");
+        const editBtn = row.querySelector(".pstim-edit-button");
+
+        if (editBtn) {
+          input.value = editBtn.dataset.currentPath || "";
+        }
+        if (editorEl) editorEl.style.display = "none";
+        if (displayEl) displayEl.style.display = "block";
       }
     });
 
@@ -345,6 +525,14 @@
 
       async function refreshAnalysisRows() {
         if (pollInProgress) {
+          return;
+        }
+
+        // Check if an output resource path is actively being edited
+        const activeEditor = document.querySelector(
+          "#result_list .pstim-resource-editor:not([style*='display: none'])"
+        );
+        if (activeEditor) {
           return;
         }
 
