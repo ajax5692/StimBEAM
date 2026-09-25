@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+import tempfile
+
 from django.test import TestCase
 from django.utils import timezone
 
@@ -312,5 +316,68 @@ class MouseImagingRecordAdminTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "deleted successfully")
         self.assertFalse(ImagingSession.objects.filter(pk=session.pk).exists())
+
+    def test_mouseimagingrecord_change_form_renders_dropzone(self):
+        from django.urls import reverse
+        from .models import MouseImagingRecord
+
+        record, _ = MouseImagingRecord.objects.get_or_create(animal=self.animal)
+        change_url = reverse("admin:imaging_metadata_mouseimagingrecord_change", args=[record.pk])
+        resp = self.client.get(change_url)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+        self.assertIn("pstim-mesc-dropzone", content)
+        self.assertIn("pstim-unit-modal", content)
+        self.assertIn(f'data-animal-id="{self.animal.animal_id}"', content)
+        self.assertIn('data-resolve-url=', content)
+        self.assertIn('.mesc', content)
+
+    def test_resolve_mesc_file_found_on_disk(self):
+        from django.urls import reverse
+        from .models import MouseImagingRecord
+
+        record, _ = MouseImagingRecord.objects.get_or_create(animal=self.animal)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_mesc_name = f"{self.animal.animal_id}_behaveAlpha_2025-10-07.mesc"
+            test_mesc_path = os.path.join(tmpdir, test_mesc_name)
+            with open(test_mesc_path, "wb") as f:
+                f.write(b"dummy mesc data")
+
+            # Create an existing session in that directory
+            ImagingSession.objects.create(
+                animal=self.animal,
+                tracker=record,
+                acquisition_date=timezone.now().date(),
+                mesc_file_path=os.path.join(tmpdir, "prior_imaging.mesc"),
+                measurement_unit_ranges="1:10",
+            )
+
+            url = reverse("admin:imaging_resolve_mesc_file")
+            resp = self.client.get(url, {"filename": test_mesc_name, "animal_id": self.animal.animal_id})
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertEqual(data["status"], "success")
+            self.assertTrue(data["found"])
+            self.assertEqual(data["detected_date"], "2025-10-07")
+            self.assertEqual(data["detected_animal_id"], self.animal.animal_id)
+            self.assertEqual(Path(data["filepath"]).resolve(), Path(test_mesc_path).resolve())
+
+    def test_resolve_mesc_file_mismatch_animal_detection(self):
+        from django.urls import reverse
+
+        url = reverse("admin:imaging_resolve_mesc_file")
+        resp = self.client.get(url, {"filename": "m122_behaveAlpha_2025-10-07.mesc", "animal_id": "m67"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["detected_animal_id"], "m122")
+        self.assertEqual(data["detected_date"], "2025-10-07")
+
+    def test_resolve_mesc_file_no_filename(self):
+        from django.urls import reverse
+
+        url = reverse("admin:imaging_resolve_mesc_file")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 400)
 
 

@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
+import re
 
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.db import models
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -286,12 +289,169 @@ class MouseImagingRecordAdmin(SimpleHistoryAdmin):
         urls = super().get_urls()
         custom_urls = [
             path(
+                "resolve-mesc-file/",
+                self.admin_site.admin_view(self.resolve_mesc_file_view),
+                name="imaging_resolve_mesc_file",
+            ),
+            path(
                 "<int:record_id>/delete-session/<int:session_id>/",
                 self.admin_site.admin_view(self.delete_session_view),
                 name="imaging_delete_session",
             ),
         ]
         return custom_urls + urls
+
+    def resolve_mesc_file_view(self, request):
+        if not self.has_change_permission(request):
+            return JsonResponse({"status": "error", "message": "Permission denied"}, status=403)
+
+        filename = request.GET.get("filename", "").strip()
+        animal_id = request.GET.get("animal_id", "").strip()
+        client_dir = request.GET.get("client_dir", "").strip()
+        dropped_path = request.GET.get("dropped_path", "").strip()
+
+        if not filename and not dropped_path:
+            return JsonResponse({"status": "error", "message": "No filename provided"}, status=400)
+
+        if dropped_path and not filename:
+            filename = Path(dropped_path).name
+
+        # Extract date from filename: YYYY-MM-DD (e.g. m67_behaveAlpha_2025-10-07.mesc) or YYYYMMDD
+        date_str = None
+        hyphen_match = re.search(r"(\d{4})-(\d{2})-(\d{2})", filename)
+        if hyphen_match:
+            y, mo, d = hyphen_match.group(1), hyphen_match.group(2), hyphen_match.group(3)
+            if 2000 <= int(y) <= 2100 and 1 <= int(mo) <= 12 and 1 <= int(d) <= 31:
+                date_str = f"{y}-{mo}-{d}"
+        if not date_str:
+            date_match = re.search(r"(?:^|[_-])(\d{4})(\d{2})(\d{2})(?:[_-](\d{6}))?", filename)
+            if date_match:
+                y, mo, d = date_match.group(1), date_match.group(2), date_match.group(3)
+                if 2000 <= int(y) <= 2100 and 1 <= int(mo) <= 12 and 1 <= int(d) <= 31:
+                    date_str = f"{y}-{mo}-{d}"
+
+        # Extract animal ID from filename (token before first underscore or hyphen, or matching animal_id)
+        # e.g. "m67_behaveAlpha_2025-10-07.mesc" -> "m67"
+        file_animal_id = None
+        if animal_id and (
+            filename.lower().startswith(animal_id.lower() + "_")
+            or filename.lower().startswith(animal_id.lower() + "-")
+        ):
+            file_animal_id = animal_id
+        else:
+            animal_match = re.match(r"^([a-zA-Z0-9]+)[_-]", filename)
+            if animal_match:
+                file_animal_id = animal_match.group(1)
+            else:
+                from animals_metadata.models import Animal
+                for a_id in Animal.objects.values_list("animal_id", flat=True):
+                    if a_id and (
+                        filename.lower().startswith(a_id.lower() + "_")
+                        or filename.lower().startswith(a_id.lower() + "-")
+                    ):
+                        file_animal_id = a_id
+                        break
+
+        # Build candidate directories to look for the file on disk
+        candidates_to_check = []
+        if dropped_path:
+            candidates_to_check.append(Path(dropped_path))
+
+        if client_dir:
+            candidates_to_check.append(Path(client_dir) / filename)
+
+        # Check sessions for this animal
+        if animal_id:
+            animal_paths = ImagingSession.objects.filter(
+                animal__animal_id__iexact=animal_id
+            ).exclude(mesc_file_path="").values_list("mesc_file_path", flat=True)
+            for p in animal_paths:
+                parent_dir = Path(p).parent
+                candidates_to_check.append(parent_dir / filename)
+                if parent_dir.is_dir():
+                    try:
+                        for sub in parent_dir.iterdir():
+                            if sub.is_dir():
+                                candidates_to_check.append(sub / filename)
+                    except (PermissionError, OSError):
+                        pass
+
+        # Check all sessions in DB
+        all_paths = ImagingSession.objects.exclude(mesc_file_path="").values_list(
+            "mesc_file_path", flat=True
+        ).distinct()
+        for p in all_paths:
+            parent_dir = Path(p).parent
+            candidates_to_check.append(parent_dir / filename)
+
+        # Check candidate files
+        seen = set()
+        resolved_path = None
+        for cand in candidates_to_check:
+            try:
+                cand_str = str(cand).lower()
+                if cand_str in seen:
+                    continue
+                seen.add(cand_str)
+                if cand.is_file():
+                    resolved_path = str(cand.resolve())
+                    break
+            except (PermissionError, OSError):
+                continue
+
+        # If not yet found, check Desktop subdirectories
+        if not resolved_path:
+            try:
+                desktop = Path.home() / "Desktop"
+                if desktop.is_dir():
+                    cand = desktop / filename
+                    if cand.is_file():
+                        resolved_path = str(cand.resolve())
+                    else:
+                        for match in desktop.glob(f"*/{filename}"):
+                            if match.is_file():
+                                resolved_path = str(match.resolve())
+                                break
+                        if not resolved_path:
+                            for match in desktop.glob(f"*/*/{filename}"):
+                                if match.is_file():
+                                    resolved_path = str(match.resolve())
+                                    break
+            except Exception:
+                pass
+
+        # Suggested dir for fallback
+        suggested_dir = ""
+        latest_session = ImagingSession.objects.filter(
+            animal__animal_id__iexact=animal_id
+        ).exclude(mesc_file_path="").order_by("-id").first()
+        if not latest_session:
+            latest_session = ImagingSession.objects.exclude(mesc_file_path="").order_by("-id").first()
+        if latest_session and latest_session.mesc_file_path:
+            suggested_dir = str(Path(latest_session.mesc_file_path).parent)
+
+        if resolved_path:
+            resolved_path_str = os.path.normpath(resolved_path)
+            return JsonResponse({
+                "status": "success",
+                "found": True,
+                "filepath": resolved_path_str,
+                "filename": filename,
+                "detected_date": date_str,
+                "detected_animal_id": file_animal_id,
+                "suggested_dir": os.path.dirname(resolved_path_str),
+            })
+        else:
+            fallback_path = os.path.normpath(os.path.join(suggested_dir, filename)) if suggested_dir else filename
+            return JsonResponse({
+                "status": "success",
+                "found": False,
+                "filepath": fallback_path,
+                "filename": filename,
+                "detected_date": date_str,
+                "detected_animal_id": file_animal_id,
+                "suggested_dir": suggested_dir,
+            })
 
     def delete_session_view(self, request, record_id, session_id):
         if not self.has_change_permission(request):
