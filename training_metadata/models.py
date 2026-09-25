@@ -31,8 +31,8 @@ class MouseTrainingRecord(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Mouse Training Record"
-        verbose_name_plural = "Mouse Training Records"
+        verbose_name = "Training Record"
+        verbose_name_plural = "Training Records"
         ordering = ["animal__animal_id"]
 
     def __str__(self):
@@ -44,7 +44,7 @@ class TrainingSession(BaseAsyncJobModel):
         MouseTrainingRecord,
         on_delete=models.CASCADE,
         related_name="sessions",
-        verbose_name="Mouse Training Record",
+        verbose_name="Training Record",
         null=True,
         blank=True,
     )
@@ -185,8 +185,8 @@ class TrainingSession(BaseAsyncJobModel):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Mouse Training Session"
-        verbose_name_plural = "Mouse Training Sessions"
+        verbose_name = "Training Session"
+        verbose_name_plural = "Training Sessions"
         ordering = ["-training_date"]
 
     def __str__(self):
@@ -207,8 +207,8 @@ class MouseBodyWeight(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Mouse Body Weight Record"
-        verbose_name_plural = "Mouse Body Weight Records"
+        verbose_name = "Body Weight Record"
+        verbose_name_plural = "Body Weight Records"
         ordering = ["animal__animal_id"]
 
     def __str__(self):
@@ -237,7 +237,7 @@ class BodyWeightEntry(models.Model):
         MouseBodyWeight,
         on_delete=models.CASCADE,
         related_name="entries",
-        verbose_name="Mouse Body Weight",
+        verbose_name="Body Weight Record",
     )
 
     date = models.DateField(
@@ -317,9 +317,9 @@ class BodyWeightEntry(models.Model):
 class TrackChanges(models.Model):
 
     class CategoryChoices(models.TextChoices):
-        TRAINING_SESSION = "training_session", "Mouse Training Session"
-        MOUSE_BODY_WEIGHT = "mouse_body_weight", "Mouse Body Weight Record"
-        MOUSE_TRAINING = "mouse_training", "Mouse Training Record"
+        TRAINING_SESSION = "training_session", "Training Session"
+        MOUSE_BODY_WEIGHT = "mouse_body_weight", "Body Weight Record"
+        MOUSE_TRAINING = "mouse_training", "Training Record"
 
     class ActionChoices(models.TextChoices):
         CREATED = "+", "Created"

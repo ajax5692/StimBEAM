@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 from typing import Any, List, Optional, Set, Tuple, Union
 
+from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -217,6 +218,41 @@ def render_copyable_path_widget(
     )
 
 
+class CopyablePathInput(forms.TextInput):
+    """
+    TextInput widget with an inline copy button on the left for file paths.
+    """
+    def __init__(self, *args, tooltip="Copy file path", **kwargs):
+        self.tooltip = tooltip
+        super().__init__(*args, **kwargs)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        input_html = super().render(name, value, attrs, renderer)
+        val_str = str(value or "").strip()
+        copy_btn_html = format_html(
+            '<button type="button" class="pstim-copy-button" data-copy-text="{}" '
+            'title="{}" aria-label="{}" '
+            'style="background: transparent; border: none; cursor: pointer; padding: 2px 4px; color: #94a3b8; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.15s ease;" '
+            'onmouseover="this.style.color=\'#38bdf8\';" onmouseout="this.style.color=\'#94a3b8\';">'
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            '<rect x="8" y="8" width="12" height="12" rx="2"></rect>'
+            '<path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>'
+            '</svg>'
+            '</button>',
+            val_str,
+            self.tooltip,
+            self.tooltip,
+        )
+        return format_html(
+            '<div style="display: inline-flex; align-items: center; gap: 4px; width: 100%; min-width: 220px;">'
+            '{}'
+            '{}'
+            '</div>',
+            copy_btn_html,
+            input_html,
+        )
+
+
 class BaseTrackChangesAdmin(admin.ModelAdmin):
     """
     Shared base ModelAdmin for TrackChanges audit trail across all domain apps.
@@ -417,6 +453,10 @@ def is_same_bpod_file(path1: Any, path2: Any) -> bool:
     if name1 and name2 and name1 == name2:
         return True
     return False
+
+
+is_same_file = is_same_bpod_file
+is_same_mesc_file = is_same_bpod_file
 
 
 def record_track_change(

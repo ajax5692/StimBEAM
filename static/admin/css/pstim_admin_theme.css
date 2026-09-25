@@ -1351,7 +1351,7 @@ body.app-training_metadata.model-trainingsession.change-list
      TRAINING METADATA TABLES — HARMONIZED MAIN LISTS
      ========================================================= */
 
-/* Animal ID — Harmonized across Body Weight and Training Records */
+/* Animal ID — Harmonized across Body Weight, Training, and Imaging Records */
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_animal_id,
@@ -1363,12 +1363,18 @@ body.app-training_metadata.model-mousetrainingrecord.change-list
   th.column-get_animal_id,
 body.app-training_metadata.model-mousetrainingrecord.change-list
   #result_list
+  td.field-get_animal_id,
+body.app-imaging_metadata.model-mouseimagingrecord.change-list
+  #result_list
+  th.column-get_animal_id,
+body.app-imaging_metadata.model-mouseimagingrecord.change-list
+  #result_list
   td.field-get_animal_id {
   width: 14% !important;
   min-width: 120px !important;
 }
 
-/* Owner — Harmonized across Body Weight and Training Records */
+/* Owner — Harmonized across Body Weight, Training, and Imaging Records */
 body.app-training_metadata.model-mousebodyweight.change-list
   #result_list
   th.column-get_owner,
@@ -1379,6 +1385,12 @@ body.app-training_metadata.model-mousetrainingrecord.change-list
   #result_list
   th.column-get_owner,
 body.app-training_metadata.model-mousetrainingrecord.change-list
+  #result_list
+  td.field-get_owner,
+body.app-imaging_metadata.model-mouseimagingrecord.change-list
+  #result_list
+  th.column-get_owner,
+body.app-imaging_metadata.model-mouseimagingrecord.change-list
   #result_list
   td.field-get_owner {
   width: 18% !important;
@@ -1562,10 +1574,16 @@ body.app-training_metadata.model-mousebodyweight
      MOUSE TRAINING SESSIONS — TABULAR INLINE TABLE
      ========================================================= */
 
-body.app-training_metadata.model-mousetrainingrecord .inline-group {
+body.app-training_metadata.model-mousetrainingrecord .inline-group,
+body.app-imaging_metadata.model-mouseimagingrecord .inline-group {
   margin-top: 10px !important;
 }
 body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  thead
+  th,
+body.app-imaging_metadata.model-mouseimagingrecord
   .inline-related
   table
   thead
@@ -1573,7 +1591,8 @@ body.app-training_metadata.model-mousetrainingrecord
   padding-top: 4px !important;
   padding-bottom: 4px !important;
 }
-body.app-training_metadata.model-mousetrainingrecord .inline-related table td {
+body.app-training_metadata.model-mousetrainingrecord .inline-related table td,
+body.app-imaging_metadata.model-mouseimagingrecord .inline-related table td {
   padding-top: 6px !important;
   padding-bottom: 6px !important;
   vertical-align: middle !important;
@@ -1585,12 +1604,25 @@ body.app-training_metadata.model-mousetrainingrecord
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
   table
+  td.original,
+body.app-imaging_metadata.model-mouseimagingrecord
+  .inline-related
+  table
+  th.original,
+body.app-imaging_metadata.model-mouseimagingrecord
+  .inline-related
+  table
   td.original {
   padding: 0 !important;
   width: 0 !important;
   max-width: 0 !important;
 }
 body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.original
+  p,
+body.app-imaging_metadata.model-mouseimagingrecord
   .inline-related
   table
   td.original
@@ -1714,6 +1746,14 @@ body.app-training_metadata.model-mousetrainingrecord
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
   table
+  td.field-notes,
+body.app-imaging_metadata.model-mouseimagingrecord
+  .inline-related
+  table
+  th.column-notes,
+body.app-imaging_metadata.model-mouseimagingrecord
+  .inline-related
+  table
   td.field-notes {
   width: 250px !important;
   min-width: 160px !important;
@@ -1723,6 +1763,14 @@ body.app-training_metadata.model-mousetrainingrecord
   table
   th.delete,
 body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.delete,
+body.app-imaging_metadata.model-mouseimagingrecord
+  .inline-related
+  table
+  th.delete,
+body.app-imaging_metadata.model-mouseimagingrecord
   .inline-related
   table
   td.delete {
@@ -1762,22 +1810,26 @@ body.app-training_metadata.model-mousetrainingrecord
 }
 
 /* 1. Spacing between the 3 elements */
-body.model-mousetrainingrecord .form-row.field-animal {
+body.model-mousetrainingrecord .form-row.field-animal,
+body.model-mouseimagingrecord .form-row.field-animal {
   display: flex !important;
   gap: 40px !important; /* Adjust gap (e.g., 20px, 40px, 60px) */
   align-items: flex-start !important;
 }
 
 /* 2. Optional fixed widths for alignment */
-body.model-mousetrainingrecord .fieldBox.field-animal {
+body.model-mousetrainingrecord .fieldBox.field-animal,
+body.model-mouseimagingrecord .fieldBox.field-animal {
   min-width: 100px !important;
 }
 
-body.model-mousetrainingrecord .fieldBox.field-get_owner_display {
+body.model-mousetrainingrecord .fieldBox.field-get_owner_display,
+body.model-mouseimagingrecord .fieldBox.field-get_owner_display {
   min-width: 140px !important;
 }
 
-body.model-mousetrainingrecord .fieldBox.field-notes {
+body.model-mousetrainingrecord .fieldBox.field-notes,
+body.model-mouseimagingrecord .fieldBox.field-notes {
   flex: 1 !important; /* Allows notes to stretch and fill remaining space */
   max-width: 500px !important;
 }

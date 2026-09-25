@@ -434,8 +434,8 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
 
-        bw_pos = content.find("Mouse Body Weight Records")
-        trn_pos = content.find("Mouse Training Records")
+        bw_pos = content.find("Body Weight Records")
+        trn_pos = content.find("Training Records")
         self.assertNotEqual(bw_pos, -1)
         self.assertNotEqual(trn_pos, -1)
         self.assertLess(bw_pos, trn_pos)
@@ -453,9 +453,8 @@ class MouseTrainingRecordAdminTest(TestCase):
         app = response.context["app_list"][0]
         model_names = [m["name"] for m in app["models"]]
         expected_names = [
-            "Mouse Body Weight Records",
-            "Mouse Training Records",
-            "Mouse Training Sessions",
+            "Body Weight Records",
+            "Training Records",
             "Track Changes",
         ]
         self.assertEqual(model_names, expected_names)
