@@ -39,12 +39,14 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         "display_d_prime",
         "display_bpod_file_path",
         "training_unit_range",
+        "include_in_mouse_tracker",
         "display_lick_traces_link",
         "created_at",
     )
 
     list_filter = (
         "status",
+        "include_in_mouse_tracker",
         "animal",
         "training_date",
     )
@@ -80,6 +82,7 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
                     "training_date",
                     "bpod_file_path",
                     "training_unit_range",
+                    "include_in_mouse_tracker",
                     "notes",
                 ),
             },
@@ -303,6 +306,7 @@ class TrainingSessionInline(admin.TabularInline):
         "training_date",
         "bpod_file_path",
         "training_unit_range",
+        "include_in_mouse_tracker",
         "display_status",
         "display_d_prime",
         "display_performance",
@@ -508,7 +512,14 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="LATEST d'")
     def get_latest_d_prime(self, obj):
-        latest = obj.sessions.filter(status=TrainingSession.StatusChoices.COMPLETED).order_by("-training_date", "-id").first()
+        latest = (
+            obj.sessions.filter(
+                status=TrainingSession.StatusChoices.COMPLETED,
+                include_in_mouse_tracker=True,
+            )
+            .order_by("-training_date", "-id")
+            .first()
+        )
         if latest and latest.metrics_json and "d_prime" in latest.metrics_json:
             d_val = latest.metrics_json["d_prime"]
             color = "#4ade80" if d_val >= 1.5 else "#60a5fa"

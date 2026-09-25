@@ -1645,6 +1645,27 @@ body.app-training_metadata.model-mousetrainingrecord
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related
   table
+  th.column-include_in_mouse_tracker,
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-include_in_mouse_tracker {
+  width: 140px !important;
+  min-width: 130px !important;
+  text-align: center !important;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
+  td.field-include_in_mouse_tracker
+  input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+body.app-training_metadata.model-mousetrainingrecord
+  .inline-related
+  table
   th.column-display_status,
 body.app-training_metadata.model-mousetrainingrecord
   .inline-related

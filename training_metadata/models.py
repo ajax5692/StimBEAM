@@ -70,6 +70,12 @@ class TrainingSession(BaseAsyncJobModel):
         help_text="Example: 10:21,25:55",
     )
 
+    include_in_mouse_tracker = models.BooleanField(
+        default=True,
+        verbose_name="include in mouse tracker?",
+        help_text="Uncheck if this session should not be plotted on the mouse profile workstation d' graph (e.g. subset/troubleshooting runs).",
+    )
+
     output_plot_path = models.CharField(
         max_length=500,
         blank=True,

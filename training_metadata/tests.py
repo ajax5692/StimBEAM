@@ -686,4 +686,48 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertContains(resp, "Duplicate session")
         self.assertContains(resp, "test_dup.mat")
 
+    def test_include_in_mouse_tracker_filters_d_prime_history_and_profile(self):
+        from animals_metadata.services import MouseTrackerService
+
+        record = MouseTrainingRecord.objects.create(animal=self.animal)
+
+        # Full session included in mouse tracker (default True)
+        s_full = TrainingSession.objects.create(
+            animal=self.animal,
+            tracker=record,
+            training_date=timezone.now().date() - timezone.timedelta(days=1),
+            bpod_file_path="/data/file.mat",
+            training_unit_range="3:174",
+            status=TrainingSession.StatusChoices.COMPLETED,
+            metrics_json={"d_prime": 1.85, "hit_rate": 0.85, "false_alarm_rate": 0.1},
+            include_in_mouse_tracker=True,
+        )
+
+        # Subset troubleshooting session excluded from mouse tracker
+        s_troubleshoot = TrainingSession.objects.create(
+            animal=self.animal,
+            tracker=record,
+            training_date=timezone.now().date(),
+            bpod_file_path="/data/file.mat",
+            training_unit_range="5:50",
+            status=TrainingSession.StatusChoices.COMPLETED,
+            metrics_json={"d_prime": 0.50, "hit_rate": 0.50, "false_alarm_rate": 0.4},
+            include_in_mouse_tracker=False,
+        )
+
+        preloaded = MouseTrackerService.preload_colony_data()
+        profile = MouseTrackerService.build_animal_profile(self.animal, preloaded, timezone.now().date())
+
+        # Assert only s_full is plotted in d_prime_history
+        d_history_ids = [pt["session_id"] for pt in profile["d_prime_history"]]
+        self.assertIn(s_full.pk, d_history_ids)
+        self.assertNotIn(s_troubleshoot.pk, d_history_ids)
+
+        # Assert change form renders column header 'include in mouse tracker?'
+        change_url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[record.pk])
+        resp = self.client.get(change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("include in mouse tracker?", resp.content.decode("utf-8").lower())
+        self.assertContains(resp, "include_in_mouse_tracker")
+
 

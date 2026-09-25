@@ -357,8 +357,9 @@ function renderSubTabContent(a) {
 
             return `
             <div class="pstim-record-card">
-              <div class="pstim-record-header">
+              <div class="pstim-record-header" style="display: flex; align-items: center; justify-content: space-between;">
                 <strong>Training Date: ${ts.date}</strong>
+                ${ts.include_in_mouse_tracker === false ? '<span class="pstim-pill warn" style="font-size: 11px;">Excluded from Tracker d\'</span>' : ""}
               </div>
               <div class="pstim-record-body">
                 <div>

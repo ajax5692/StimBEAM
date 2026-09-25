@@ -254,6 +254,7 @@ class MouseTrackerService:
                 "date": str(ts.training_date) if ts.training_date else "—",
                 "bpod_file": ts.bpod_file_path or "",
                 "units": ts.training_unit_range or "",
+                "include_in_mouse_tracker": getattr(ts, "include_in_mouse_tracker", True),
                 "status": ts.get_status_display()
                 if hasattr(ts, "get_status_display")
                 else (ts.status or "—"),
@@ -274,6 +275,8 @@ class MouseTrackerService:
             key=lambda x: (x.training_date, x.id),
         )
         for ts in sorted_training:
+            if not getattr(ts, "include_in_mouse_tracker", True):
+                continue
             metrics = ts.metrics_json or {}
             if "d_prime" in metrics and metrics["d_prime"] is not None:
                 d_prime_history.append({
