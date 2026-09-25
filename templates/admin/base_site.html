@@ -108,7 +108,23 @@
           </a>
           <!-- Second Level Flyout: Imaging Models -->
           <div class="pstim-submenu-dropdown">
-            <a href="/admin/imaging_metadata/imagingsession/"> Imaging Sessions </a>
+            <!-- Imaging Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/imaging_metadata/mouseimagingrecord/" class="pstim-submenu-trigger">
+                Imaging Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Imaging Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/imaging_metadata/mouseimagingrecord/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Imaging Records</a>
+                {% for record in nav_imaging_records %}
+                  <a href="/admin/imaging_metadata/mouseimagingrecord/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
             <a href="/admin/imaging_metadata/trackchanges/"> Track Changes </a>
           </div>
         </div>
@@ -138,10 +154,10 @@
           </a>
           <!-- Second Level Flyout: Training Models -->
           <div class="pstim-submenu-dropdown">
-            <!-- Mouse Body Weight Records (Submenu) -->
+            <!-- Body Weight Records (Submenu) -->
             <div class="pstim-dropdown-submenu">
               <a href="/admin/training_metadata/mousebodyweight/" class="pstim-submenu-trigger">
-                Mouse Body Weight Records
+                Body Weight Records
                 <span class="pstim-submenu-caret">▶</span>
               </a>
               <!-- Third Level Flyout: Mice under Body Weight Records -->
@@ -155,10 +171,10 @@
               </div>
             </div>
 
-            <!-- Mouse Training Records (Submenu) -->
+            <!-- Training Records (Submenu) -->
             <div class="pstim-dropdown-submenu">
               <a href="/admin/training_metadata/mousetrainingrecord/" class="pstim-submenu-trigger">
-                Mouse Training Records
+                Training Records
                 <span class="pstim-submenu-caret">▶</span>
               </a>
               <!-- Third Level Flyout: Mice under Training Records -->

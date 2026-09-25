@@ -60,6 +60,9 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
 
     ordering = ("-training_date",)
 
+    def has_module_permission(self, request):
+        return False
+
     readonly_fields = (
         "status",
         "created_at",
@@ -578,13 +581,13 @@ class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
 
     def response_add(self, request, obj, post_url_continue=None):
         if "_save" in request.POST:
-            self.message_user(request, f"Mouse training record for {obj.animal.animal_id} was saved successfully.")
+            self.message_user(request, f"Training record for {obj.animal.animal_id} was saved successfully.")
             return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
         return super().response_add(request, obj, post_url_continue)
 
     def response_change(self, request, obj):
         if "_save" in request.POST:
-            self.message_user(request, f"Mouse training record for {obj.animal.animal_id} was saved successfully.")
+            self.message_user(request, f"Training record for {obj.animal.animal_id} was saved successfully.")
             return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
         return super().response_change(request, obj)
 

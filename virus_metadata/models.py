@@ -38,7 +38,7 @@ class Virus(models.Model):
 
     class Meta:
         verbose_name = "Virus"
-        verbose_name_plural = "Viruses"
+        verbose_name_plural = "Virus Inventory"
         ordering = ["virus_id"]
 
     def __str__(self):

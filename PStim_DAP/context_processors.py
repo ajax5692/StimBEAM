@@ -28,5 +28,13 @@ def enabled_apps(request: HttpRequest) -> Dict[str, Any]:
         except Exception:
             context["nav_body_weight_records"] = []
             context["nav_training_records"] = []
+    if apps.is_installed("imaging_metadata"):
+        try:
+            from imaging_metadata.models import MouseImagingRecord
+            context["nav_imaging_records"] = list(
+                MouseImagingRecord.objects.select_related("animal").order_by("animal__animal_id")
+            )
+        except Exception:
+            context["nav_imaging_records"] = []
     return context
 
