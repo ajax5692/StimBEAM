@@ -1,0 +1,585 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+<div id="pstim-imaging-record-app"
+     data-animal-id="{% if original and original.animal %}{{ original.animal.animal_id }}{% endif %}"
+     data-resolve-url="{% url 'admin:imaging_resolve_mesc_file' %}">
+
+  <!-- Error / Warning Alert Banner -->
+  <div id="pstim-drop-alert" class="pstim-drop-alert" style="display: none;" role="alert">
+    <span class="pstim-drop-alert-icon">⚠️</span>
+    <span id="pstim-drop-alert-message" class="pstim-drop-alert-msg"></span>
+    <button type="button" class="pstim-drop-alert-close" id="pstim-drop-alert-close" aria-label="Close message">&times;</button>
+  </div>
+
+  <!-- Drag and Drop Zone Container -->
+  <div class="pstim-dropzone-wrapper">
+    <div id="pstim-mesc-dropzone" class="pstim-dropzone" tabindex="0" role="button" aria-label="Drag and drop MESC session file">
+      <div class="pstim-dropzone-content">
+        <div class="pstim-dropzone-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <div class="pstim-dropzone-text-group">
+          <span class="pstim-dropzone-primary-text">
+            <strong>Drag &amp; Drop MESC imaging file (.mesc) here</strong> or <span class="pstim-dropzone-browse-link">browse</span>
+          </span>
+          <span class="pstim-dropzone-secondary-text">
+            Auto-detects acquisition date and filepath, validates Animal ID, and prompts for unit range
+          </span>
+        </div>
+      </div>
+      <input type="file" id="pstim-mesc-file-input" accept=".mesc" style="display: none;" />
+    </div>
+  </div>
+
+  <!-- Unit Range Prompt Modal Dialog -->
+  <div id="pstim-unit-modal" class="pstim-modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="pstim-modal-title">
+    <div class="pstim-modal-container">
+      <div class="pstim-modal-header">
+        <div class="pstim-modal-header-title">
+          <span class="pstim-modal-badge-icon">🔬</span>
+          <h3 id="pstim-modal-title" style="margin: 0; font-size: 16px; font-weight: 600; color: #f8fafc;">Add Imaging Session</h3>
+        </div>
+        <button type="button" class="pstim-modal-btn-close" id="pstim-modal-close" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="pstim-modal-body">
+        <div class="pstim-modal-details-grid">
+          <div class="pstim-detail-item">
+            <span class="pstim-detail-label">Animal ID</span>
+            <span class="pstim-detail-value pstim-badge-animal" id="pstim-modal-display-animal">-</span>
+          </div>
+          <div class="pstim-detail-item">
+            <span class="pstim-detail-label">Acquisition Date</span>
+            <span class="pstim-detail-value" id="pstim-modal-display-date">-</span>
+          </div>
+        </div>
+
+        <div class="pstim-modal-field-block">
+          <span class="pstim-detail-label">File</span>
+          <div class="pstim-file-chip" id="pstim-modal-display-filename">-</div>
+        </div>
+
+        <div class="pstim-modal-field-block">
+          <label for="pstim-modal-filepath" class="pstim-detail-label">MESC File Path</label>
+          <input type="text" id="pstim-modal-filepath" class="pstim-input-text" spellcheck="false" />
+        </div>
+
+        <div class="pstim-modal-field-block">
+          <label for="pstim-modal-unit-range" class="pstim-detail-label">
+            <strong>Measurement Unit Range <span style="color: #f87171;">*</span></strong>
+          </label>
+          <input type="text" id="pstim-modal-unit-range" class="pstim-input-text" placeholder="e.g. 10:21 or 10:21,25:55" autocomplete="off" />
+          <div class="pstim-field-hint">Specify the measurement unit range (e.g., <code>10:21</code> or <code>10:21,25:55</code>).</div>
+          <div id="pstim-modal-field-error" class="pstim-modal-error" style="display: none;"></div>
+        </div>
+      </div>
+
+      <div class="pstim-modal-footer">
+        <button type="button" class="pstim-btn-modal-cancel" id="pstim-modal-cancel">Cancel</button>
+        <button type="button" class="pstim-btn-modal-submit" id="pstim-modal-submit">Add Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Toast Notification -->
+  <div id="pstim-toast" class="pstim-toast" style="display: none;"></div>
+</div>
+
+<script>
+(function() {
+  document.addEventListener("DOMContentLoaded", function() {
+    const appEl = document.getElementById("pstim-imaging-record-app");
+    if (!appEl) return;
+
+    const resolveUrl = appEl.dataset.resolveUrl;
+    const dropzone = document.getElementById("pstim-mesc-dropzone");
+    const fileInput = document.getElementById("pstim-mesc-file-input");
+    const alertBox = document.getElementById("pstim-drop-alert");
+    const alertMsg = document.getElementById("pstim-drop-alert-message");
+    const alertClose = document.getElementById("pstim-drop-alert-close");
+    const toast = document.getElementById("pstim-toast");
+
+    // Modal elements
+    const modal = document.getElementById("pstim-unit-modal");
+    const modalClose = document.getElementById("pstim-modal-close");
+    const modalCancel = document.getElementById("pstim-modal-cancel");
+    const modalSubmit = document.getElementById("pstim-modal-submit");
+    const modalAnimal = document.getElementById("pstim-modal-display-animal");
+    const modalDate = document.getElementById("pstim-modal-display-date");
+    const modalFilename = document.getElementById("pstim-modal-display-filename");
+    const modalFilepath = document.getElementById("pstim-modal-filepath");
+    const modalUnitRange = document.getElementById("pstim-modal-unit-range");
+    const modalError = document.getElementById("pstim-modal-field-error");
+
+    let currentPendingDrop = null;
+
+    // Helper: Show Error Banner
+    function showAlert(msg) {
+      if (!alertBox || !alertMsg) return;
+      alertMsg.textContent = msg;
+      alertBox.style.display = "flex";
+      alertBox.classList.remove("pstim-alert-shake");
+      void alertBox.offsetWidth; // re-trigger animation
+      alertBox.classList.add("pstim-alert-shake");
+      alertBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function hideAlert() {
+      if (alertBox) alertBox.style.display = "none";
+    }
+
+    if (alertClose) {
+      alertClose.addEventListener("click", hideAlert);
+    }
+
+    // Helper: Show Toast
+    function showToast(msg) {
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.style.display = "block";
+      toast.classList.add("show");
+      setTimeout(function() {
+        toast.classList.remove("show");
+        setTimeout(function() { toast.style.display = "none"; }, 300);
+      }, 3500);
+    }
+
+    // Helper: Get Current Record's Animal ID
+    function getCurrentAnimalId() {
+      // 1. From data attribute
+      if (appEl.dataset.animalId && appEl.dataset.animalId.trim()) {
+        return appEl.dataset.animalId.trim();
+      }
+      // 2. From readonly display
+      const readonlyEl = document.querySelector(".field-animal .readonly");
+      if (readonlyEl && readonlyEl.textContent.trim()) {
+        return readonlyEl.textContent.trim();
+      }
+      // 3. From select element (if add form)
+      const selectEl = document.querySelector("#id_animal");
+      if (selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0]) {
+        const text = selectEl.selectedOptions[0].text.trim();
+        if (text && text !== "---------") return text;
+      }
+      return "";
+    }
+
+    // Helper: Extract Animal ID from Filename
+    // e.g. "m67_behaveAlpha_2025-10-07.mesc" -> "m67", "m122_xxx.mesc" -> "m122"
+    function extractAnimalIdFromFilename(fn, currentAnimal) {
+      if (!fn) return null;
+      const base = fn.split(/[\\/]/).pop();
+      if (currentAnimal) {
+        const cLower = currentAnimal.toLowerCase();
+        const bLower = base.toLowerCase();
+        if (bLower.startsWith(cLower + "_") || bLower.startsWith(cLower + "-")) {
+          return currentAnimal;
+        }
+      }
+      const match = base.match(/^([a-zA-Z0-9]+)[_-]/);
+      return match ? match[1] : null;
+    }
+
+    // Helper: Extract Date from Filename
+    // Handles "2025-10-07" or "20251007"
+    function extractDateFromFilename(fn) {
+      if (!fn) return null;
+      const base = fn.split(/[\\/]/).pop();
+      // Match YYYY-MM-DD
+      const mHyphen = base.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (mHyphen) {
+        const y = parseInt(mHyphen[1], 10);
+        const mo = parseInt(mHyphen[2], 10);
+        const d = parseInt(mHyphen[3], 10);
+        if (y >= 2000 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+          return mHyphen[0];
+        }
+      }
+      // Match YYYYMMDD
+      const mCompact = base.match(/[_-](\d{4})(\d{2})(\d{2})(?:[_-]\d{6})?/);
+      if (mCompact) {
+        const y = parseInt(mCompact[1], 10);
+        const mo = parseInt(mCompact[2], 10);
+        const d = parseInt(mCompact[3], 10);
+        if (y >= 2000 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+          return `${mCompact[1]}-${mCompact[2]}-${mCompact[3]}`;
+        }
+      }
+      return null;
+    }
+
+    // Helper: Validate Unit Range String
+    function validateUnitRangeFormat(val) {
+      if (!val || !val.trim()) return "Measurement unit range is required (e.g. 10:21).";
+      const parts = val.split(",");
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i].trim();
+        if (!part) return "Invalid range format.";
+        if (part.includes(":")) {
+          const nums = part.split(":");
+          if (nums.length !== 2) return `Invalid range '${part}'. Use format start:end.`;
+          const s = parseInt(nums[0], 10);
+          const e = parseInt(nums[1], 10);
+          if (isNaN(s) || isNaN(e)) return `Unit numbers must be integers in '${part}'.`;
+          if (s > e) return `Start (${s}) cannot be greater than end (${e}) in '${part}'.`;
+        } else {
+          if (isNaN(parseInt(part, 10))) return `Unit '${part}' must be an integer.`;
+        }
+      }
+      return null;
+    }
+
+    // File Processing Core
+    async function processDroppedFile(fileOrPath) {
+      hideAlert();
+
+      let filename = "";
+      let droppedPath = "";
+
+      if (typeof fileOrPath === "string") {
+        droppedPath = fileOrPath.trim();
+        filename = droppedPath.split(/[\\/]/).pop();
+      } else if (fileOrPath instanceof File) {
+        filename = fileOrPath.name;
+        // In electron / webview2, file.path is present
+        if (fileOrPath.path) {
+          droppedPath = fileOrPath.path;
+        }
+      }
+
+      if (!filename) return;
+
+      if (!filename.toLowerCase().endsWith(".mesc")) {
+        showAlert(`Invalid file type: "${filename}". Only .mesc MESC imaging files are supported.`);
+        return;
+      }
+
+      const currentAnimal = getCurrentAnimalId();
+      if (!currentAnimal) {
+        showAlert("Please select or save an Animal ID before adding imaging session files.");
+        return;
+      }
+
+      // Requirement 2: Cross-check animal ID from filename against the record's animal ID
+      const fileAnimal = extractAnimalIdFromFilename(filename, currentAnimal);
+      if (!fileAnimal) {
+        showAlert(`Could not detect Animal ID from filename "${filename}". Expected format: "<AnimalID>_...". Registration blocked.`);
+        return;
+      }
+
+      // Normalize comparison (e.g. m67 == M67, or 67 == m67)
+      const normFile = fileAnimal.toLowerCase().replace(/^m/, "");
+      const normCurr = currentAnimal.toLowerCase().replace(/^m/, "");
+      if (normFile !== normCurr) {
+        showAlert(`Animal ID mismatch: File "${filename}" belongs to animal "${fileAnimal}", but this imaging record is for animal "${currentAnimal}". Registration prevented.`);
+        return;
+      }
+
+      // Requirement 1: Resolve filepath & date
+      let localDate = extractDateFromFilename(filename);
+      if (!localDate) {
+        localDate = new Date().toISOString().split("T")[0];
+      }
+
+      const clientDir = localStorage.getItem("pstim_mesc_last_dir") || "";
+
+      // Call server to resolve exact file path on disk
+      let resolvedFilepath = droppedPath;
+      let detectedDate = localDate;
+
+      try {
+        const params = new URLSearchParams({
+          filename: filename,
+          animal_id: currentAnimal,
+          client_dir: clientDir,
+          dropped_path: droppedPath,
+        });
+
+        const resp = await fetch(`${resolveUrl}?${params.toString()}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.status === "success") {
+            if (data.filepath) resolvedFilepath = data.filepath;
+            if (data.detected_date) detectedDate = data.detected_date;
+            if (data.suggested_dir) {
+              localStorage.setItem("pstim_mesc_last_dir", data.suggested_dir);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not query server to resolve file path:", err);
+      }
+
+      if (!resolvedFilepath) {
+        resolvedFilepath = clientDir ? `${clientDir}\\${filename}` : filename;
+      }
+
+      // Requirement 3: Prompt user for unit range via modal
+      openUnitModal({
+        animalId: currentAnimal,
+        filename: filename,
+        date: detectedDate,
+        filepath: resolvedFilepath,
+      });
+    }
+
+    // Modal Open / Close
+    function openUnitModal(details) {
+      currentPendingDrop = details;
+      if (modalAnimal) modalAnimal.textContent = details.animalId;
+      if (modalDate) modalDate.textContent = details.date;
+      if (modalFilename) modalFilename.textContent = details.filename;
+      if (modalFilepath) modalFilepath.value = details.filepath;
+      if (modalUnitRange) {
+        modalUnitRange.value = "";
+        modalUnitRange.classList.remove("error");
+      }
+      if (modalError) {
+        modalError.textContent = "";
+        modalError.style.display = "none";
+      }
+
+      if (modal) {
+        modal.style.display = "flex";
+        setTimeout(function() {
+          if (modalUnitRange) modalUnitRange.focus();
+        }, 80);
+      }
+    }
+
+    function closeUnitModal() {
+      if (modal) modal.style.display = "none";
+      currentPendingDrop = null;
+    }
+
+    if (modalClose) modalClose.addEventListener("click", closeUnitModal);
+    if (modalCancel) modalCancel.addEventListener("click", closeUnitModal);
+
+    // Modal submit handler
+    function handleModalSubmit() {
+      if (!currentPendingDrop) return;
+
+      const unitVal = modalUnitRange ? modalUnitRange.value.trim() : "";
+      const err = validateUnitRangeFormat(unitVal);
+      if (err) {
+        if (modalError) {
+          modalError.textContent = err;
+          modalError.style.display = "block";
+        }
+        if (modalUnitRange) {
+          modalUnitRange.classList.add("error");
+          modalUnitRange.focus();
+        }
+        return;
+      }
+
+      const finalPath = modalFilepath ? modalFilepath.value.trim() : currentPendingDrop.filepath;
+
+      // Save directory to localStorage
+      if (finalPath.includes("\\") || finalPath.includes("/")) {
+        const parts = finalPath.split(/[\\/]/);
+        parts.pop();
+        const dir = parts.join("\\");
+        if (dir) localStorage.setItem("pstim_mesc_last_dir", dir);
+      }
+
+      // Add to inline table
+      addSessionToTable({
+        date: currentPendingDrop.date,
+        filepath: finalPath,
+        unitRange: unitVal,
+        filename: currentPendingDrop.filename,
+      });
+
+      closeUnitModal();
+    }
+
+    if (modalSubmit) modalSubmit.addEventListener("click", handleModalSubmit);
+
+    if (modalUnitRange) {
+      modalUnitRange.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleModalSubmit();
+        } else if (e.key === "Escape") {
+          closeUnitModal();
+        }
+      });
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && modal && modal.style.display === "flex") {
+        closeUnitModal();
+      }
+    });
+
+    // Add Session Row into Django Tabular Inline
+    function addSessionToTable(info) {
+      const inlineGroup = document.getElementById("sessions-group");
+      if (!inlineGroup) {
+        showAlert("Error: Could not find Imaging Sessions table on page.");
+        return;
+      }
+
+      // Check if there is an existing empty row at the bottom
+      let targetRow = null;
+      const existingRows = inlineGroup.querySelectorAll("tbody tr.form-row:not(#sessions-empty)");
+      if (existingRows.length > 0) {
+        const lastRow = existingRows[existingRows.length - 1];
+        const dateIn = lastRow.querySelector('input[name$="-acquisition_date"]');
+        const pathIn = lastRow.querySelector('input[name$="-mesc_file_path"]');
+        const unitIn = lastRow.querySelector('input[name$="-measurement_unit_ranges"]');
+        if (dateIn && pathIn && unitIn && !dateIn.value.trim() && !pathIn.value.trim() && !unitIn.value.trim()) {
+          targetRow = lastRow;
+        }
+      }
+
+      if (!targetRow) {
+        // Trigger Django's built-in "Add another Imaging Session" button
+        const addBtn = inlineGroup.querySelector(".add-row a");
+        if (addBtn) {
+          addBtn.click();
+          const updatedRows = inlineGroup.querySelectorAll("tbody tr.form-row:not(#sessions-empty)");
+          targetRow = updatedRows[updatedRows.length - 1];
+        }
+      }
+
+      if (!targetRow) {
+        showAlert("Error: Could not create a new Imaging Session row.");
+        return;
+      }
+
+      // Populate row inputs
+      const dateInput = targetRow.querySelector('input[name$="-acquisition_date"]');
+      if (dateInput) {
+        dateInput.value = info.date;
+        dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+        dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      const pathInput = targetRow.querySelector('input[name$="-mesc_file_path"]');
+      if (pathInput) {
+        pathInput.value = info.filepath;
+        pathInput.dispatchEvent(new Event("input", { bubbles: true }));
+        pathInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // Update copy button tooltip/data if present
+        const copyBtn = pathInput.parentElement ? pathInput.parentElement.querySelector(".pstim-copy-button") : null;
+        if (copyBtn) copyBtn.dataset.copyText = info.filepath;
+      }
+
+      const unitInput = targetRow.querySelector('input[name$="-measurement_unit_ranges"]');
+      if (unitInput) {
+        unitInput.value = info.unitRange;
+        unitInput.dispatchEvent(new Event("input", { bubbles: true }));
+        unitInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      // Highlight new row
+      targetRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      targetRow.classList.add("pstim-row-highlight");
+      setTimeout(function() {
+        targetRow.classList.remove("pstim-row-highlight");
+      }, 2500);
+
+      showToast(`✓ Added session for ${info.filename} (${info.unitRange}). Click "Save" to save record.`);
+    }
+
+    // Drag and Drop Event Listeners
+    if (dropzone) {
+      dropzone.addEventListener("click", function() {
+        if (fileInput) fileInput.click();
+      });
+
+      dropzone.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (fileInput) fileInput.click();
+        }
+      });
+
+      ["dragenter", "dragover"].forEach(function(eventName) {
+        dropzone.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add("dragover");
+        });
+      });
+
+      ["dragleave", "drop"].forEach(function(eventName) {
+        dropzone.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove("dragover");
+        });
+      });
+
+      dropzone.addEventListener("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            processDroppedFile(e.dataTransfer.files[i]);
+          }
+        } else if (e.dataTransfer) {
+          const text = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text");
+          if (text) processDroppedFile(text);
+        }
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener("change", function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+          for (let i = 0; i < e.target.files.length; i++) {
+            processDroppedFile(e.target.files[i]);
+          }
+          fileInput.value = "";
+        }
+      });
+    }
+
+    // Also support drag & drop onto the entire inline group table
+    const inlineGroup = document.getElementById("sessions-group");
+    if (inlineGroup) {
+      ["dragenter", "dragover"].forEach(function(eventName) {
+        inlineGroup.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          inlineGroup.classList.add("pstim-table-dragover");
+        });
+      });
+
+      ["dragleave", "drop"].forEach(function(eventName) {
+        inlineGroup.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          inlineGroup.classList.remove("pstim-table-dragover");
+        });
+      });
+
+      inlineGroup.addEventListener("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            processDroppedFile(e.dataTransfer.files[i]);
+          }
+        } else if (e.dataTransfer) {
+          const text = e.dataTransfer.getData("text/plain") || e.dataTransfer.getData("text");
+          if (text) processDroppedFile(text);
+        }
+      });
+    }
+  });
+})();
+</script>
+{% endblock %}

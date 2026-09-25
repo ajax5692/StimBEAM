@@ -27,12 +27,11 @@ class AnimalsMetadataConfig(AppConfig):
                     "Track Changes",
                 ],
                 "virus_metadata": [
-                    "Viruses",
-                    "Virus",
+                    "Virus Inventory",
                     "Track Changes",
                 ],
                 "imaging_metadata": [
-                    "Imaging Sessions",
+                    "Imaging Records",
                     "Track Changes",
                 ],
                 "imaging_analysis_metadata": [
@@ -40,8 +39,8 @@ class AnimalsMetadataConfig(AppConfig):
                     "Track Changes",
                 ],
                 "training_metadata": [
-                    "Training Sessions",
-                    "Mice Body Weight Records",
+                    "Body Weight Records",
+                    "Training Records",
                     "Track Changes",
                 ],
             }

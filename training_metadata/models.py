@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -5,16 +8,53 @@ from simple_history.models import HistoricalRecords
 
 from animals_metadata.utils import (
     BaseAsyncJobModel,
+    is_same_bpod_file,
+    parse_unit_ranges,
     validate_measurement_unit_ranges,
-    validate_non_overlapping_session_units,
 )
 
 
+class MouseTrainingRecord(models.Model):
+    animal = models.OneToOneField(
+        "animals_metadata.Animal",
+        on_delete=models.CASCADE,
+        related_name="training_record",
+        verbose_name="Animal ID",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Notes",
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "Training Record"
+        verbose_name_plural = "Training Records"
+        ordering = ["animal__animal_id"]
+
+    def __str__(self):
+        return f"{self.animal.animal_id}"
+
+
 class TrainingSession(BaseAsyncJobModel):
+    tracker = models.ForeignKey(
+        MouseTrainingRecord,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+        verbose_name="Training Record",
+        null=True,
+        blank=True,
+    )
+
     animal = models.ForeignKey(
         "animals_metadata.Animal",
         on_delete=models.PROTECT,
         related_name="training_sessions",
+        null=True,
+        blank=True,
     )
 
     training_date = models.DateField()
@@ -28,6 +68,12 @@ class TrainingSession(BaseAsyncJobModel):
         max_length=200,
         validators=[validate_measurement_unit_ranges],
         help_text="Example: 10:21,25:55",
+    )
+
+    include_in_mouse_tracker = models.BooleanField(
+        default=False,
+        verbose_name="include in mouse tracker?",
+        help_text="Check if this session should be plotted on the mouse profile workstation d' graph.",
     )
 
     output_plot_path = models.CharField(
@@ -66,22 +112,56 @@ class TrainingSession(BaseAsyncJobModel):
     )
 
     def clean(self):
+        if hasattr(self, "tracker") and self.tracker and not (hasattr(self, "animal") and self.animal):
+            self.animal = self.tracker.animal
         super().clean()
-        if hasattr(self, "animal_id") and self.animal_id and self.training_date and self.training_unit_range:
-            validate_non_overlapping_session_units(
-                model_class=TrainingSession,
+        if (
+            hasattr(self, "animal_id")
+            and self.animal_id
+            and self.training_date
+            and self.bpod_file_path
+            and self.training_unit_range
+        ):
+            current_units = parse_unit_ranges(self.training_unit_range)
+            existing_sessions = TrainingSession.objects.filter(
                 animal=self.animal,
-                session_date=self.training_date,
-                unit_range_str=self.training_unit_range,
-                date_field_name="training_date",
-                unit_field_name="training_unit_range",
-                exclude_pk=self.pk,
-                model_name="training session",
+                training_date=self.training_date,
             )
+            if self.pk:
+                existing_sessions = existing_sessions.exclude(pk=self.pk)
+
+            for other in existing_sessions:
+                if is_same_bpod_file(self.bpod_file_path, other.bpod_file_path):
+                    other_units = parse_unit_ranges(other.training_unit_range)
+                    if current_units == other_units:
+                        filename = Path(self.bpod_file_path).name or self.bpod_file_path
+                        raise ValidationError({
+                            "training_unit_range": (
+                                f"The BPod file '{filename}' is already uploaded for animal '{self.animal}' "
+                                f"on {self.training_date} with the same unit numbers ({self.training_unit_range}). "
+                                f"Uploading the same file with identical unit numbers is not allowed."
+                            )
+                        })
 
     def save(self, *args, **kwargs):
+        if self.tracker_id and not self.animal_id:
+            self.animal = self.tracker.animal
+        elif self.animal_id and not self.tracker_id:
+            tracker, _ = MouseTrainingRecord.objects.get_or_create(animal=self.animal)
+            self.tracker = tracker
         update_fields = kwargs.get("update_fields")
-        if not update_fields or any(f in update_fields for f in ("animal", "animal_id", "training_date", "training_unit_range")):
+        if not update_fields or any(
+            f in update_fields
+            for f in (
+                "animal",
+                "animal_id",
+                "tracker",
+                "tracker_id",
+                "training_date",
+                "bpod_file_path",
+                "training_unit_range",
+            )
+        ):
             self.clean()
         super().save(*args, **kwargs)
 
@@ -110,7 +190,7 @@ class TrainingSession(BaseAsyncJobModel):
         ordering = ["-training_date"]
 
     def __str__(self):
-        return f"{self.animal.animal_id} - {self.training_date}"
+        return ""
 
 
 class MouseBodyWeight(models.Model):
@@ -127,8 +207,8 @@ class MouseBodyWeight(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Mouse Body Weight Record"
-        verbose_name_plural = "Mice Body Weight Records"
+        verbose_name = "Body Weight Record"
+        verbose_name_plural = "Body Weight Records"
         ordering = ["animal__animal_id"]
 
     def __str__(self):
@@ -157,7 +237,7 @@ class BodyWeightEntry(models.Model):
         MouseBodyWeight,
         on_delete=models.CASCADE,
         related_name="entries",
-        verbose_name="Mouse Body Weight",
+        verbose_name="Body Weight Record",
     )
 
     date = models.DateField(
@@ -194,8 +274,8 @@ class BodyWeightEntry(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        verbose_name = "Body Weight Entry"
-        verbose_name_plural = "Body Weight Entries"
+        verbose_name = "Mouse Body Weight Entry"
+        verbose_name_plural = "Mouse Body Weight Entries"
         ordering = ["date"]
 
     def __str__(self):
@@ -238,7 +318,8 @@ class TrackChanges(models.Model):
 
     class CategoryChoices(models.TextChoices):
         TRAINING_SESSION = "training_session", "Training Session"
-        MOUSE_BODY_WEIGHT = "mouse_body_weight", "Mouse Body Weight Record"
+        MOUSE_BODY_WEIGHT = "mouse_body_weight", "Body Weight Record"
+        MOUSE_TRAINING = "mouse_training", "Training Record"
 
     class ActionChoices(models.TextChoices):
         CREATED = "+", "Created"

@@ -1,21 +1,34 @@
+import os
 from pathlib import Path
+import re
 
 from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.db import models
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from simple_history.admin import SimpleHistoryAdmin
 
 from animals_metadata.utils import (
     BaseTrackChangesAdmin,
     get_user_initials,
+    is_same_bpod_file,
+    parse_unit_ranges,
     render_copyable_path_widget,
 )
 
-from .models import BodyWeightEntry, MouseBodyWeight, TrackChanges, TrainingSession
+from .models import (
+    BodyWeightEntry,
+    MouseBodyWeight,
+    MouseTrainingRecord,
+    TrackChanges,
+    TrainingSession,
+)
 from .services import execute_training_analysis
 
 
@@ -27,14 +40,17 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         "animal",
         "training_date",
         "display_status",
+        "display_d_prime",
         "display_bpod_file_path",
         "training_unit_range",
+        "include_in_mouse_tracker",
         "display_lick_traces_link",
         "created_at",
     )
 
     list_filter = (
         "status",
+        "include_in_mouse_tracker",
         "animal",
         "training_date",
     )
@@ -47,6 +63,9 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
     )
 
     ordering = ("-training_date",)
+
+    def has_module_permission(self, request):
+        return False
 
     readonly_fields = (
         "status",
@@ -70,6 +89,7 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
                     "training_date",
                     "bpod_file_path",
                     "training_unit_range",
+                    "include_in_mouse_tracker",
                     "notes",
                 ),
             },
@@ -143,6 +163,37 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
             url,
         )
 
+    @admin.display(description=mark_safe("<span class='d-prime-header'>d'</span>"))
+    def display_d_prime(self, obj):
+        if not obj or not obj.metrics_json or "d_prime" not in obj.metrics_json:
+            return "-"
+        d_val = obj.metrics_json["d_prime"]
+        color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+        return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.animal_id and obj.training_date and obj.bpod_file_path:
+            other_sessions = TrainingSession.objects.filter(
+                animal=obj.animal,
+                training_date=obj.training_date,
+            ).exclude(pk=obj.pk)
+            for other in other_sessions:
+                if is_same_bpod_file(obj.bpod_file_path, other.bpod_file_path):
+                    filename = Path(obj.bpod_file_path).name or obj.bpod_file_path
+                    messages.warning(
+                        request,
+                        format_html(
+                            '<strong>Notice:</strong> The BPod file <code>{}</code> is uploaded multiple times on <strong>{}</strong> for animal <strong>{}</strong> with different unit ranges (<code>{}</code> and <code>{}</code>).',
+                            filename,
+                            obj.training_date,
+                            obj.animal.animal_id,
+                            obj.training_unit_range,
+                            other.training_unit_range,
+                        ),
+                    )
+                    break
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -188,6 +239,541 @@ class TrainingSessionAdmin(SimpleHistoryAdmin):
         return redirect("admin:training_session_lick_traces", session_id=session.pk)
 
 
+class CopyablePathInput(forms.TextInput):
+    """
+    TextInput widget with an inline copy button on the left for file paths.
+    """
+    def render(self, name, value, attrs=None, renderer=None):
+        input_html = super().render(name, value, attrs, renderer)
+        val_str = str(value or "").strip()
+        copy_btn_html = format_html(
+            '<button type="button" class="pstim-copy-button" data-copy-text="{}" '
+            'title="Copy BPod file path" aria-label="Copy BPod file path" '
+            'style="background: transparent; border: none; cursor: pointer; padding: 2px 4px; color: #94a3b8; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.15s ease;" '
+            'onmouseover="this.style.color=\'#38bdf8\';" onmouseout="this.style.color=\'#94a3b8\';">'
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            '<rect x="8" y="8" width="12" height="12" rx="2"></rect>'
+            '<path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>'
+            '</svg>'
+            '</button>',
+            val_str,
+        )
+        return format_html(
+            '<div style="display: inline-flex; align-items: center; gap: 4px; width: 100%; min-width: 220px;">'
+            '{}'
+            '{}'
+            '</div>',
+            copy_btn_html,
+            input_html,
+        )
+
+
+class TrainingSessionInlineFormSet(forms.BaseInlineFormSet):
+    """
+    Formset validator checking intra-submission collisions between multiple forms
+    submitted simultaneously in the inline table.
+    """
+    def clean(self):
+        super().clean()
+        valid_forms = []
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if self._should_delete_form(form):
+                continue
+            date = form.cleaned_data.get("training_date")
+            bpod_file = form.cleaned_data.get("bpod_file_path")
+            unit_range = form.cleaned_data.get("training_unit_range")
+            if date and bpod_file and unit_range:
+                valid_forms.append((form, date, bpod_file, unit_range))
+
+        # Check for duplicate same BPod file with same unit numbers within submitted forms
+        for i in range(len(valid_forms)):
+            form_i, date_i, file_i, units_i = valid_forms[i]
+            parsed_i = parse_unit_ranges(units_i)
+            for j in range(i + 1, len(valid_forms)):
+                form_j, date_j, file_j, units_j = valid_forms[j]
+                if date_i == date_j and is_same_bpod_file(file_i, file_j):
+                    parsed_j = parse_unit_ranges(units_j)
+                    if parsed_i == parsed_j:
+                        filename = Path(file_j).name or file_j
+                        err_msg = (
+                            f"Duplicate session: The BPod file '{filename}' cannot be uploaded multiple times "
+                            f"on {date_j} with identical unit numbers ({units_j})."
+                        )
+                        form_j.add_error("training_unit_range", err_msg)
+
+
+class TrainingSessionInline(admin.TabularInline):
+    model = TrainingSession
+    formset = TrainingSessionInlineFormSet
+    fk_name = "tracker"
+    extra = 0
+    fields = (
+        "training_date",
+        "bpod_file_path",
+        "training_unit_range",
+        "include_in_mouse_tracker",
+        "display_status",
+        "display_d_prime",
+        "display_performance",
+        "display_lick_traces_link",
+        "notes",
+    )
+    readonly_fields = (
+        "display_status",
+        "display_d_prime",
+        "display_performance",
+        "display_lick_traces_link",
+    )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "bpod_file_path":
+            kwargs["widget"] = CopyablePathInput(attrs={"style": "width: 100%; min-width: 200px;"})
+            return db_field.formfield(**kwargs)
+        if db_field.name == "training_unit_range":
+            kwargs["widget"] = forms.TextInput(attrs={"style": "min-width: 110px;"})
+            return db_field.formfield(**kwargs)
+        if db_field.name == "notes":
+            kwargs["widget"] = forms.TextInput(attrs={"style": "min-width: 140px;"})
+            return db_field.formfield(**kwargs)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    @admin.display(description="Status")
+    def display_status(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        if obj.status == TrainingSession.StatusChoices.RUNNING:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 6px; color: #60a5fa; font-weight: 600;">'
+                '<span>{}</span>'
+                '<span style="'
+                'width: 12px;'
+                'height: 12px;'
+                'border: 2px solid rgba(255,255,255,0.35);'
+                'border-top-color: currentColor;'
+                'border-radius: 50%;'
+                'display: inline-block;'
+                'animation: analysis-spin 0.8s linear infinite;'
+                'flex-shrink: 0;'
+                '"></span>'
+                '</span>',
+                "Running",
+            )
+        elif obj.status == TrainingSession.StatusChoices.COMPLETED:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 4px; color: #4ade80; font-weight: 600;">'
+                '<span>{}</span>'
+                '</span>',
+                "✓ Completed",
+            )
+        elif obj.status == TrainingSession.StatusChoices.FAILED:
+            return format_html(
+                '<span style="display: inline-flex; align-items: center; gap: 4px; color: #f87171; font-weight: 600;" title="{}">'
+                '<span>{}</span>'
+                '</span>',
+                obj.error_message or "Analysis failed",
+                "✗ Failed",
+            )
+        return format_html(
+            '<span style="color: #facc15; font-weight: 600;">{}</span>',
+            "Pending",
+        )
+
+    @admin.display(description=mark_safe("<span class='d-prime-header'>d'</span>"))
+    def display_d_prime(self, obj):
+        if not obj or not obj.metrics_json or "d_prime" not in obj.metrics_json:
+            return "-"
+        d_val = obj.metrics_json["d_prime"]
+        color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+        return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+
+    @admin.display(description="Performance (Hit / FA)")
+    def display_performance(self, obj):
+        if not obj or not obj.metrics_json:
+            return "-"
+        m = obj.metrics_json
+        hr = m.get("hit_rate")
+        far = m.get("false_alarm_rate")
+        if hr is not None and far is not None:
+            return format_html(
+                '<span style="font-size: 12px; color: #cbd5e1;">Hit: <strong style="color: #4ade80;">{}%</strong> | FA: <strong style="color: #f87171;">{}%</strong></span>',
+                f"{hr * 100:.1f}",
+                f"{far * 100:.1f}",
+            )
+        return "-"
+
+    @admin.display(description="Lick Traces")
+    def display_lick_traces_link(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        url = reverse("admin:training_session_lick_traces", args=[obj.pk])
+        if obj.status == TrainingSession.StatusChoices.COMPLETED:
+            return format_html(
+                '<a href="{}" target="_blank" class="button" style="background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; white-space: nowrap;">'
+                '📊 View Traces'
+                '</a>',
+                url,
+            )
+        return format_html(
+            '<a href="{}" target="_blank" class="button" style="background: #334155; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">'
+            'Open Viewer'
+            '</a>',
+            url,
+        )
+
+
+@admin.register(MouseTrainingRecord)
+class MouseTrainingRecordAdmin(SimpleHistoryAdmin):
+    inlines = [TrainingSessionInline]
+    list_select_related = ("animal", "animal__owner")
+
+    list_display = (
+        "get_animal_id",
+        "get_owner",
+        "get_total_sessions",
+        "get_latest_training_date",
+        "get_latest_d_prime",
+        "get_pipeline_stage",
+    )
+
+    list_filter = (
+        "animal__owner",
+        "animal__status",
+        "animal__pipeline_stage",
+    )
+
+    search_fields = (
+        "animal__animal_id",
+        "animal__owner__username",
+        "animal__owner__first_name",
+        "animal__owner__last_name",
+        "notes",
+    )
+
+    ordering = (
+        "animal__animal_id",
+    )
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    (
+                        "animal",
+                        "get_owner_display",
+                        "notes",
+                    ),
+                ),
+            },
+        ),
+    )
+
+    readonly_fields = (
+        "get_owner_display",
+    )
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": forms.Textarea(
+                attrs={
+                    "rows": 1,
+                    "style": "height: 36px; width: 100%; min-width: 250px; max-width: 450px; resize: vertical;",
+                    "placeholder": "Notes...",
+                }
+            ),
+        },
+    }
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + ("animal",)
+        return self.readonly_fields
+
+    @admin.display(description="Animal ID", ordering="animal__animal_id")
+    def get_animal_id(self, obj):
+        return obj.animal.animal_id if obj.animal else "-"
+
+    @admin.display(description="Owner", ordering="animal__owner")
+    def get_owner(self, obj):
+        if obj.animal and obj.animal.owner:
+            return obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+        return "-"
+
+    @admin.display(description="Owner")
+    def get_owner_display(self, obj):
+        if obj and obj.animal and obj.animal.owner:
+            owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+            return f"{owner_name}"
+        return "-"
+
+    @admin.display(description="Total Sessions")
+    def get_total_sessions(self, obj):
+        return obj.sessions.count()
+
+    @admin.display(description="Last Training Day")
+    def get_latest_training_date(self, obj):
+        latest = obj.sessions.order_by("-training_date", "-id").first()
+        return latest.training_date if latest else "-"
+
+    @admin.display(description=mark_safe("<span class='d-prime-header'>Latest d'</span>"))
+    def get_latest_d_prime(self, obj):
+        latest = (
+            obj.sessions.filter(
+                status=TrainingSession.StatusChoices.COMPLETED,
+                include_in_mouse_tracker=True,
+            )
+            .order_by("-training_date", "-id")
+            .first()
+        )
+        if latest and latest.metrics_json and "d_prime" in latest.metrics_json:
+            d_val = latest.metrics_json["d_prime"]
+            color = "#4ade80" if d_val >= 1.5 else "#60a5fa"
+            return format_html('<strong style="color: {}; font-size: 13px;">{}</strong>', color, f"{d_val:.2f}")
+        return "-"
+
+    @admin.display(description="Pipeline Stage", ordering="animal__pipeline_stage")
+    def get_pipeline_stage(self, obj):
+        return obj.animal.get_pipeline_stage_display() if (obj.animal and hasattr(obj.animal, "get_pipeline_stage_display")) else (obj.animal.pipeline_stage if obj.animal else "-")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("sessions")
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        saved_instances = []
+        for instance in instances:
+            if isinstance(instance, TrainingSession):
+                if not instance.animal_id and form.instance.animal_id:
+                    instance.animal = form.instance.animal
+                instance.tracker = form.instance
+            instance.save()
+            saved_instances.append(instance)
+        for deleted_obj in formset.deleted_objects:
+            deleted_obj.delete()
+        formset.save_m2m()
+
+        # Check all sessions for this record: warn every time the record is saved if any share BPod file on the same date
+        animal = form.instance.animal if hasattr(form.instance, "animal") else None
+        all_sessions = list(TrainingSession.objects.filter(animal=animal)) if animal else []
+        warned_pairs = set()
+        for i in range(len(all_sessions)):
+            sess_i = all_sessions[i]
+            if not sess_i.training_date or not sess_i.bpod_file_path:
+                continue
+            for j in range(i + 1, len(all_sessions)):
+                sess_j = all_sessions[j]
+                if sess_i.training_date == sess_j.training_date and is_same_bpod_file(sess_i.bpod_file_path, sess_j.bpod_file_path):
+                    pair_key = tuple(sorted([sess_i.pk, sess_j.pk]))
+                    if pair_key in warned_pairs:
+                        continue
+                    warned_pairs.add(pair_key)
+                    filename = Path(sess_i.bpod_file_path).name or sess_i.bpod_file_path
+                    animal_id = form.instance.animal.animal_id if form.instance.animal else ""
+                    messages.warning(
+                        request,
+                        format_html(
+                            '<strong>Notice:</strong> The BPod file <code>{}</code> is uploaded multiple times on <strong>{}</strong> for animal <strong>{}</strong> with different unit ranges (<code>{}</code> and <code>{}</code>).',
+                            filename,
+                            sess_i.training_date,
+                            animal_id,
+                            sess_i.training_unit_range,
+                            sess_j.training_unit_range,
+                        ),
+                    )
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_save" in request.POST:
+            self.message_user(request, f"Training record for {obj.animal.animal_id} was saved successfully.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        if "_save" in request.POST:
+            self.message_user(request, f"Training record for {obj.animal.animal_id} was saved successfully.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[obj.pk]))
+        return super().response_change(request, obj)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        context["subtitle"] = None
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "resolve-bpod-file/",
+                self.admin_site.admin_view(self.resolve_bpod_file_view),
+                name="training_resolve_bpod_file",
+            ),
+            path(
+                "<int:record_id>/delete-session/<int:session_id>/",
+                self.admin_site.admin_view(self.delete_session_view),
+                name="training_delete_session",
+            ),
+        ]
+        return custom_urls + urls
+
+    def resolve_bpod_file_view(self, request):
+        if not self.has_change_permission(request):
+            return JsonResponse({"status": "error", "message": "Permission denied"}, status=403)
+
+        filename = request.GET.get("filename", "").strip()
+        animal_id = request.GET.get("animal_id", "").strip()
+        client_dir = request.GET.get("client_dir", "").strip()
+        dropped_path = request.GET.get("dropped_path", "").strip()
+
+        if not filename and not dropped_path:
+            return JsonResponse({"status": "error", "message": "No filename provided"}, status=400)
+
+        if dropped_path and not filename:
+            filename = Path(dropped_path).name
+
+        # Extract date from filename: YYYYMMDD or YYYY-MM-DD
+        date_str = None
+        date_match = re.search(r"(?:^|[_-])(\d{4})(\d{2})(\d{2})(?:[_-](\d{6}))?", filename)
+        if date_match:
+            y, mo, d = date_match.group(1), date_match.group(2), date_match.group(3)
+            if 2000 <= int(y) <= 2100 and 1 <= int(mo) <= 12 and 1 <= int(d) <= 31:
+                date_str = f"{y}-{mo}-{d}"
+        else:
+            hyphen_match = re.search(r"(\d{4})-(\d{2})-(\d{2})", filename)
+            if hyphen_match:
+                date_str = hyphen_match.group(0)
+
+        # Extract animal ID from filename (token before first underscore or hyphen)
+        file_animal_id = None
+        animal_match = re.match(r"^([a-zA-Z0-9]+)[_-]", filename)
+        if animal_match:
+            file_animal_id = animal_match.group(1)
+
+        # Build candidate directories to look for the file on disk
+        candidates_to_check = []
+        if dropped_path:
+            candidates_to_check.append(Path(dropped_path))
+
+        if client_dir:
+            candidates_to_check.append(Path(client_dir) / filename)
+
+        # Check sessions for this animal
+        if animal_id:
+            animal_paths = TrainingSession.objects.filter(
+                animal__animal_id__iexact=animal_id
+            ).exclude(bpod_file_path="").values_list("bpod_file_path", flat=True)
+            for p in animal_paths:
+                parent_dir = Path(p).parent
+                candidates_to_check.append(parent_dir / filename)
+                if parent_dir.is_dir():
+                    try:
+                        for sub in parent_dir.iterdir():
+                            if sub.is_dir():
+                                candidates_to_check.append(sub / filename)
+                    except (PermissionError, OSError):
+                        pass
+
+        # Check all sessions in DB
+        all_paths = TrainingSession.objects.exclude(bpod_file_path="").values_list(
+            "bpod_file_path", flat=True
+        ).distinct()
+        for p in all_paths:
+            parent_dir = Path(p).parent
+            candidates_to_check.append(parent_dir / filename)
+
+        # Check candidate files
+        seen = set()
+        resolved_path = None
+        for cand in candidates_to_check:
+            try:
+                cand_str = str(cand).lower()
+                if cand_str in seen:
+                    continue
+                seen.add(cand_str)
+                if cand.is_file():
+                    resolved_path = str(cand.resolve())
+                    break
+            except (PermissionError, OSError):
+                continue
+
+        # If not yet found, check Desktop subdirectories
+        if not resolved_path:
+            try:
+                desktop = Path.home() / "Desktop"
+                if desktop.is_dir():
+                    cand = desktop / filename
+                    if cand.is_file():
+                        resolved_path = str(cand.resolve())
+                    else:
+                        for match in desktop.glob(f"*/{filename}"):
+                            if match.is_file():
+                                resolved_path = str(match.resolve())
+                                break
+                        if not resolved_path:
+                            for match in desktop.glob(f"*/*/{filename}"):
+                                if match.is_file():
+                                    resolved_path = str(match.resolve())
+                                    break
+            except Exception:
+                pass
+
+        # Suggested dir for fallback
+        suggested_dir = ""
+        latest_session = TrainingSession.objects.filter(
+            animal__animal_id__iexact=animal_id
+        ).exclude(bpod_file_path="").order_by("-id").first()
+        if not latest_session:
+            latest_session = TrainingSession.objects.exclude(bpod_file_path="").order_by("-id").first()
+        if latest_session and latest_session.bpod_file_path:
+            suggested_dir = str(Path(latest_session.bpod_file_path).parent)
+
+        if resolved_path:
+            resolved_path_str = os.path.normpath(resolved_path)
+            return JsonResponse({
+                "status": "success",
+                "found": True,
+                "filepath": resolved_path_str,
+                "filename": filename,
+                "detected_date": date_str,
+                "detected_animal_id": file_animal_id,
+                "suggested_dir": os.path.dirname(resolved_path_str),
+            })
+        else:
+            fallback_path = os.path.normpath(os.path.join(suggested_dir, filename)) if suggested_dir else filename
+            return JsonResponse({
+                "status": "success",
+                "found": False,
+                "filepath": fallback_path,
+                "filename": filename,
+                "detected_date": date_str,
+                "detected_animal_id": file_animal_id,
+                "suggested_dir": suggested_dir,
+            })
+
+    def delete_session_view(self, request, record_id, session_id):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+
+        record = get_object_or_404(MouseTrainingRecord, pk=record_id)
+        session = TrainingSession.objects.filter(pk=session_id).first()
+        if not session:
+            messages.warning(request, "Training session not found or already deleted.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
+
+        if session.tracker_id != record.pk and session.animal_id != record.animal_id:
+            messages.error(request, "This training session does not belong to this animal.")
+            return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
+
+        date_str = str(session.training_date)
+        animal_str = str(session.animal.animal_id) if session.animal else ""
+        session.delete()
+        messages.success(
+            request,
+            f"Training session ({date_str}) for animal {animal_str} was deleted successfully.",
+        )
+        return redirect(reverse("admin:training_metadata_mousetrainingrecord_change", args=[record_id]))
+
+
 class BodyWeightEntryInline(admin.TabularInline):
     model = BodyWeightEntry
     extra = 0
@@ -218,7 +804,7 @@ class BodyWeightEntryInline(admin.TabularInline):
 class MouseBodyWeightAdmin(SimpleHistoryAdmin):
     change_form_template = "admin/training_metadata/mousebodyweight/change_form.html"
     inlines = [BodyWeightEntryInline]
-    list_select_related = ("animal",)
+    list_select_related = ("animal", "animal__owner")
 
     list_display = (
         "get_animal_id",
@@ -234,7 +820,9 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
 
     search_fields = (
         "animal__animal_id",
-        "animal__owner",
+        "animal__owner__username",
+        "animal__owner__first_name",
+        "animal__owner__last_name",
     )
 
     ordering = (
@@ -269,13 +857,15 @@ class MouseBodyWeightAdmin(SimpleHistoryAdmin):
 
     @admin.display(description="Owner", ordering="animal__owner")
     def get_owner(self, obj):
-        return obj.animal.owner if obj.animal else "-"
+        if obj.animal and obj.animal.owner:
+            return obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+        return "-"
 
     @admin.display(description="Owner")
     def get_owner_display(self, obj):
-        if obj and obj.animal:
-            owner_label = obj.animal.get_owner_display() if hasattr(obj.animal, "get_owner_display") else obj.animal.owner
-            return f"{owner_label} ({obj.animal.owner})"
+        if obj and obj.animal and obj.animal.owner:
+            owner_name = obj.animal.owner.first_name if obj.animal.owner.first_name else obj.animal.owner.username
+            return f"{owner_name}"
         return "-"
     
     

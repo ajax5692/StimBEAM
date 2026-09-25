@@ -108,7 +108,23 @@
           </a>
           <!-- Second Level Flyout: Imaging Models -->
           <div class="pstim-submenu-dropdown">
-            <a href="/admin/imaging_metadata/imagingsession/"> Imaging Sessions </a>
+            <!-- Imaging Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/imaging_metadata/mouseimagingrecord/" class="pstim-submenu-trigger">
+                Imaging Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Imaging Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/imaging_metadata/mouseimagingrecord/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Imaging Records</a>
+                {% for record in nav_imaging_records %}
+                  <a href="/admin/imaging_metadata/mouseimagingrecord/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
             <a href="/admin/imaging_metadata/trackchanges/"> Track Changes </a>
           </div>
         </div>
@@ -138,8 +154,40 @@
           </a>
           <!-- Second Level Flyout: Training Models -->
           <div class="pstim-submenu-dropdown">
-            <a href="/admin/training_metadata/trainingsession/"> Training Sessions </a>
-            <a href="/admin/training_metadata/mousebodyweight/"> Mice Body Weight Records </a>
+            <!-- Body Weight Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/training_metadata/mousebodyweight/" class="pstim-submenu-trigger">
+                Body Weight Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Body Weight Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/training_metadata/mousebodyweight/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Body Weight Records</a>
+                {% for record in nav_body_weight_records %}
+                  <a href="/admin/training_metadata/mousebodyweight/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Training Records (Submenu) -->
+            <div class="pstim-dropdown-submenu">
+              <a href="/admin/training_metadata/mousetrainingrecord/" class="pstim-submenu-trigger">
+                Training Records
+                <span class="pstim-submenu-caret">▶</span>
+              </a>
+              <!-- Third Level Flyout: Mice under Training Records -->
+              <div class="pstim-submenu-dropdown pstim-scrollable">
+                <a href="/admin/training_metadata/mousetrainingrecord/" style="font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.08);">All Training Records</a>
+                {% for record in nav_training_records %}
+                  <a href="/admin/training_metadata/mousetrainingrecord/{{ record.pk }}/change/">{{ record.animal.animal_id }}</a>
+                {% empty %}
+                  <span style="display: block; padding: 9px 14px; color: #94a3b8; font-size: 12px; font-style: italic;">No records found</span>
+                {% endfor %}
+              </div>
+            </div>
+
             <a href="/admin/training_metadata/trackchanges/"> Track Changes </a>
           </div>
         </div>
@@ -284,7 +332,7 @@
 
     {% if installed_apps.imaging_analysis_metadata or installed_apps.training_metadata %}
     /* =======================================================
-       ANALYSIS RUN LIVE POLLING
+       ANALYSIS RUN LIVE POLLING (CHANGELISTS)
        ======================================================= */
     const isAnalysisRunPage =
       {% if installed_apps.imaging_analysis_metadata %}path.includes("/admin/imaging_analysis_metadata/analysisrun/"){% else %}false{% endif %} ||
@@ -359,6 +407,98 @@
       });
 
       setTimeout(refreshAnalysisRows, 1000);
+    }
+
+    /* =======================================================
+       MOUSE TRAINING RECORD INLINE LIVE POLLING (SINGLE ANIMAL)
+       ======================================================= */
+    const isMouseTrainingChangePage = path.includes("/admin/training_metadata/mousetrainingrecord/") && path.includes("/change/");
+    const sessionsGroup = document.querySelector("#sessions-group");
+
+    if (isMouseTrainingChangePage && sessionsGroup) {
+      const INLINE_POLL_INTERVAL = 3000;
+      let inlinePollInProgress = false;
+
+      function hasActiveTrainingJobs() {
+        const text = sessionsGroup.innerText || "";
+        return text.includes("Running") || text.includes("Pending");
+      }
+
+      async function refreshTrainingSessionsInline() {
+        if (inlinePollInProgress) return;
+        if (document.hidden) return;
+
+        // If the user is currently editing an input inside the table, do not interrupt
+        const activeEl = document.activeElement;
+        if (activeEl && sessionsGroup.contains(activeEl)) return;
+
+        // If the user has checked any checkbox (e.g. Delete?), do not interrupt
+        const checkedBoxes = sessionsGroup.querySelectorAll('input[type="checkbox"]:checked');
+        if (checkedBoxes.length > 0) return;
+
+        if (!hasActiveTrainingJobs()) return;
+
+        inlinePollInProgress = true;
+        try {
+          const response = await fetch(window.location.href, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+
+          if (!response.ok) return;
+
+          const html = await response.text();
+          const parser = new DOMParser();
+          const newDoc = parser.parseFromString(html, "text/html");
+
+          const currentTbody = sessionsGroup.querySelector("table tbody");
+          const newTbody = newDoc.querySelector("#sessions-group table tbody");
+
+          if (currentTbody && newTbody) {
+            const currentRows = currentTbody.querySelectorAll("tr.form-row.has_original");
+            const newRows = newTbody.querySelectorAll("tr.form-row.has_original");
+
+            if (currentRows.length === newRows.length && currentRows.length > 0) {
+              const cellsToSync = [
+                ".field-display_status",
+                ".field-display_d_prime",
+                ".field-display_performance",
+                ".field-display_lick_traces_link",
+              ];
+              currentRows.forEach((row, idx) => {
+                const newRow = newRows[idx];
+                cellsToSync.forEach((selector) => {
+                  const currCell = row.querySelector(selector);
+                  const newCell = newRow.querySelector(selector);
+                  if (currCell && newCell && currCell.innerHTML !== newCell.innerHTML) {
+                    currCell.innerHTML = newCell.innerHTML;
+                  }
+                });
+              });
+            } else if (currentTbody.innerHTML !== newTbody.innerHTML) {
+              currentTbody.innerHTML = newTbody.innerHTML;
+            }
+          }
+        } catch (err) {
+          console.debug("Training session inline polling temporarily unavailable:", err);
+        } finally {
+          inlinePollInProgress = false;
+        }
+      }
+
+      setInterval(refreshTrainingSessionsInline, INLINE_POLL_INTERVAL);
+
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden && hasActiveTrainingJobs()) {
+          refreshTrainingSessionsInline();
+        }
+      });
+
+      if (hasActiveTrainingJobs()) {
+        setTimeout(refreshTrainingSessionsInline, 1000);
+      }
     }
     {% endif %}
   });
