@@ -498,6 +498,7 @@ class MouseTrainingRecordAdminTest(TestCase):
             training_unit_range="1:15",
             status=TrainingSession.StatusChoices.COMPLETED,
             metrics_json={"d_prime": 1.75, "hit_rate": 0.8, "false_alarm_rate": 0.1},
+            include_in_mouse_tracker=True,
         )
         record = session.tracker
 
@@ -728,5 +729,85 @@ class MouseTrainingRecordAdminTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("include in mouse tracker?", resp.content.decode("utf-8").lower())
         self.assertContains(resp, "include_in_mouse_tracker")
+
+
+class TrainingRecordDragAndDropTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin_dragdrop",
+            email="admin_dragdrop@test.com",
+            password="password",
+        )
+        self.client.force_login(self.admin_user)
+
+        self.animal = Animal.objects.create(
+            animal_id="m67",
+            sex="M",
+            genotype="Thy1-gcamp6s",
+            dob=timezone.now().date(),
+        )
+        self.record = MouseTrainingRecord.objects.create(animal=self.animal)
+
+    def test_change_form_renders_dropzone_and_modal(self):
+        url = reverse("admin:training_metadata_mousetrainingrecord_change", args=[self.record.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+        self.assertIn("pstim-bpod-dropzone", content)
+        self.assertIn("pstim-unit-modal", content)
+        self.assertIn("pstim-drop-alert", content)
+        self.assertIn('data-animal-id="m67"', content)
+
+    def test_resolve_bpod_file_found_on_disk(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_mat_name = "m67_new_VisGo_GoProb_Train_measure_20250926_132921.mat"
+            test_mat_path = os.path.join(tmpdir, test_mat_name)
+            with open(test_mat_path, "wb") as f:
+                f.write(b"dummy mat data")
+
+            # Create an existing session in that directory
+            TrainingSession.objects.create(
+                animal=self.animal,
+                tracker=self.record,
+                training_date=timezone.now().date(),
+                bpod_file_path=os.path.join(tmpdir, "prior_session.mat"),
+                training_unit_range="1:10",
+            )
+
+            url = reverse("admin:training_resolve_bpod_file")
+            resp = self.client.get(url, {"filename": test_mat_name, "animal_id": "m67"})
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertEqual(data["status"], "success")
+            self.assertTrue(data["found"])
+            self.assertEqual(data["detected_date"], "2025-09-26")
+            self.assertEqual(data["detected_animal_id"], "m67")
+            self.assertEqual(Path(data["filepath"]).resolve(), Path(test_mat_path).resolve())
+
+    def test_resolve_bpod_file_mismatch_animal_detection(self):
+        url = reverse("admin:training_resolve_bpod_file")
+        resp = self.client.get(url, {"filename": "m122_blah_blah_20250926_132921.mat", "animal_id": "m67"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["detected_animal_id"], "m122")
+        self.assertEqual(data["detected_date"], "2025-09-26")
+
+    def test_resolve_bpod_file_no_filename(self):
+        url = reverse("admin:training_resolve_bpod_file")
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 400)
+
+    def test_include_in_mouse_tracker_defaults_to_false(self):
+        new_session = TrainingSession(
+            animal=self.animal,
+            tracker=self.record,
+            training_date=timezone.now().date(),
+            bpod_file_path="/data/file.mat",
+            training_unit_range="1:10",
+        )
+        self.assertFalse(new_session.include_in_mouse_tracker)
+
 
 

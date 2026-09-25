@@ -71,9 +71,9 @@ class TrainingSession(BaseAsyncJobModel):
     )
 
     include_in_mouse_tracker = models.BooleanField(
-        default=True,
+        default=False,
         verbose_name="include in mouse tracker?",
-        help_text="Uncheck if this session should not be plotted on the mouse profile workstation d' graph (e.g. subset/troubleshooting runs).",
+        help_text="Check if this session should be plotted on the mouse profile workstation d' graph.",
     )
 
     output_plot_path = models.CharField(
